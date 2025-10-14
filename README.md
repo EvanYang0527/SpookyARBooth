@@ -47,17 +47,13 @@ npm install
 ```
 
 3. Configure environment variables:
-   - Copy the example file and rename it if needed (for Vite you can use `.env`, `.env.local`, or `.env.development`).
-
 ```bash
-cp .env.example .env.development
+cp .env.example .env
 ```
 
-4. Edit your environment file and add your Google Gemini credentials:
-
+4. Edit `.env` and add your AI Effects API endpoint:
 ```env
-GOOGLE_API_KEY=your-google-gemini-api-key
-GOOGLE_API_ENDPOINT=https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent
+VITE_EFFECTS_API=https://your-api-endpoint.com/api
 ```
 
 ### Development
@@ -81,33 +77,50 @@ Preview the production build:
 npm run preview
 ```
 
-## Google Gemini Integration
+## AI Effects API
 
-The AI-powered effects are generated using the [Google Gemini API](https://ai.google.dev/). Provide an API key and a model endpoint capable of returning image responses (for example `gemini-1.5-flash`).
+### Endpoint Specification
 
-### Environment Variables
+The app expects an AI effects API with the following specification:
 
-- `GOOGLE_API_KEY` – your Google AI Studio / Gemini API key.
-- `GOOGLE_API_ENDPOINT` – the full REST endpoint for the model you want to call (e.g. `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent`).
+**POST** `${VITE_EFFECTS_API}/applyEffect`
 
-> **Tip:** When deploying, make sure these variables are available to the Vite build step. The Vite configuration exposes variables prefixed with `GOOGLE_` to the client runtime.
+**Request Body:**
+```json
+{
+  "image": "<base64-encoded-image>",
+  "effect": "cartoon_ghost",
+  "intensity": 70
+}
+```
+
+**Response:**
+```json
+{
+  "image": "<base64-encoded-processed-image>",
+  "meta": {
+    "effect": "cartoon_ghost",
+    "elapsed_ms": 1000
+  }
+}
+```
 
 ### Available Effects
 
-The following preset prompts are available in the app:
-
-- `cartoon_ghost` – Adds a playful translucent cartoon ghost companion.
-- `haunted_fog` – Surrounds the scene with eerie fog and moonlit ambience.
-- `vhs_glitch` – Applies a retro VHS horror glitch aesthetic.
-- `pumpkin_aura` – Casts a fiery pumpkin-orange aura around the subject.
+- `cartoon_ghost` - Cartoon Ghost effect
+- `haunted_fog` - Haunted Fog effect
+- `vhs_glitch` - VHS Glitch effect
+- `pumpkin_aura` - Pumpkin Aura effect
 
 ### Error Handling
 
 The app handles:
-- Network errors (with retry and exponential backoff)
-- Google API errors (4xx, 5xx)
-- Safety-filtered generations
-- Missing configuration values
+- Network errors (with retry)
+- API errors (4xx, 5xx)
+- Camera access errors
+- Missing API configuration
+
+Retryable errors (5xx, 429) will automatically retry up to 2 times with exponential backoff.
 
 ## Browser Compatibility
 
@@ -156,7 +169,7 @@ The app is a static site and can be deployed to:
 - AWS S3 + CloudFront
 - Any static hosting service
 
-Make sure to set the `GOOGLE_API_KEY` and `GOOGLE_API_ENDPOINT` environment variables in your deployment platform.
+Make sure to set the `VITE_EFFECTS_API` environment variable in your deployment platform.
 
 ## Customization
 
@@ -189,8 +202,8 @@ Update `src/services/effectsApi.ts` to customize:
 - Check if another app is using the camera
 
 ### API errors
-- Verify `GOOGLE_API_KEY` and `GOOGLE_API_ENDPOINT` are set correctly
-- Check the configured endpoint is accessible and returns image responses
+- Verify `VITE_EFFECTS_API` is set correctly
+- Check API endpoint is accessible
 - Review browser console for detailed errors
 
 ### Build errors

@@ -1,49 +1,18 @@
 import { EffectType } from '../components/EffectPicker';
 
-type GeminiInlineDataPart = {
-  inlineData?: {
-    data?: string;
-    mimeType?: string;
-  };
-  text?: string;
-};
-
-interface GeminiCandidate {
-  content?: {
-    parts?: GeminiInlineDataPart[];
-  };
-  finishReason?: string;
-  safetyRatings?: Array<{
-    category?: string;
-    probability?: string;
-  }>;
+interface ApplyEffectRequest {
+  image: string;
+  effect: EffectType;
+  intensity: number;
 }
 
-interface GeminiResponse {
-  candidates?: GeminiCandidate[];
-  promptFeedback?: {
-    safetyRatings?: Array<{
-      category?: string;
-      probability?: string;
-    }>;
-  };
-  error?: {
-    code?: number;
-    message?: string;
-    status?: string;
+interface ApplyEffectResponse {
+  image: string;
+  meta: {
+    effect: string;
+    elapsed_ms: number;
   };
 }
-
-const effectInstructions: Record<EffectType, string> = {
-  cartoon_ghost:
-    'add a translucent cartoon ghost companion near the main subject with soft glow and playful details',
-  haunted_fog:
-    'surround the scene with moody, haunted fog and cool moonlit lighting while keeping the subject visible',
-  vhs_glitch:
-    'apply a retro VHS horror glitch with chromatic aberration, scan lines, and subtle static noise',
-  pumpkin_aura:
-    'cast a fiery pumpkin-orange aura lighting from below with sparks and Halloween ambience',
-};
 
 export class EffectsApiError extends Error {
   constructor(
@@ -61,13 +30,11 @@ export async function applyEffect(
   effect: EffectType,
   intensity: number = 70
 ): Promise<string> {
-  const apiKey = import.meta.env.GOOGLE_API_KEY || import.meta.env.VITE_GOOGLE_API_KEY;
-  const apiEndpoint =
-    import.meta.env.GOOGLE_API_ENDPOINT || import.meta.env.VITE_GOOGLE_API_ENDPOINT;
+  const apiEndpoint = import.meta.env.VITE_EFFECTS_API;
 
-  if (!apiEndpoint || !apiKey) {
+  if (!apiEndpoint) {
     throw new EffectsApiError(
-      'Google Gemini API is not configured. Please set GOOGLE_API_ENDPOINT and GOOGLE_API_KEY in your environment file.',
+      'Effects API endpoint not configured. Please set VITE_EFFECTS_API in your .env file.',
       undefined,
       false
     );
@@ -75,42 +42,17 @@ export async function applyEffect(
 
   const base64Image = imageData.split(',')[1] || imageData;
 
-  const effectDescription = effectInstructions[effect];
-  const prompt = `You are a Halloween photo editor. Enhance the uploaded photo by applying the ${effectDescription}. Keep the original person or people recognisable, preserve proportions, and avoid adding extra text. Use an intensity of ${intensity} out of 100. Return only the final edited image.`;
-
-  const requestBody = {
-    contents: [
-      {
-        role: 'user',
-        parts: [
-          { text: prompt },
-          {
-            inlineData: {
-              mimeType: 'image/jpeg',
-              data: base64Image,
-            },
-          },
-        ],
-      },
-    ],
-    generationConfig: {
-      temperature: 0.4,
-      topP: 0.95,
-      topK: 32,
-    },
-    responseModalities: ['IMAGE'],
+  const requestBody: ApplyEffectRequest = {
+    image: base64Image,
+    effect,
+    intensity
   };
 
   try {
-    const endpointWithKey = apiEndpoint.includes('?')
-      ? `${apiEndpoint}&key=${encodeURIComponent(apiKey)}`
-      : `${apiEndpoint}?key=${encodeURIComponent(apiKey)}`;
-
-    const response = await fetch(endpointWithKey, {
+    const response = await fetch(`${apiEndpoint}/applyEffect`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-goog-api-key': apiKey,
       },
       body: JSON.stringify(requestBody),
     });
@@ -121,12 +63,7 @@ export async function applyEffect(
       let errorMessage = `API request failed with status ${response.status}`;
       try {
         const errorData = await response.json();
-        if (typeof errorData === 'string') {
-          errorMessage = errorData;
-        } else {
-          errorMessage =
-            errorData.error?.message || errorData.message || errorData.error || errorMessage;
-        }
+        errorMessage = errorData.error || errorData.message || errorMessage;
       } catch {
         errorMessage = await response.text() || errorMessage;
       }
@@ -134,55 +71,15 @@ export async function applyEffect(
       throw new EffectsApiError(errorMessage, response.status, isRetryable);
     }
 
-    const data: GeminiResponse = await response.json();
+    const data: ApplyEffectResponse = await response.json();
 
-    if (data.error?.message) {
-      throw new EffectsApiError(data.error.message, data.error.code, data.error.code === 503);
+    if (!data.image) {
+      throw new EffectsApiError('API response missing image data', undefined, false);
     }
 
-    const candidate = data.candidates?.[0];
-
-    if (!candidate) {
-      throw new EffectsApiError('No candidates returned from Google Gemini API', undefined, true);
-    }
-
-    if (candidate.finishReason === 'SAFETY') {
-      throw new EffectsApiError(
-        'The generated image was blocked by safety filters. Please try a different photo.',
-        undefined,
-        false
-      );
-    }
-
-    const imagePart = candidate.content?.parts?.find(
-      (part) => part.inlineData?.data || (part.text && /data:image\//.test(part.text))
-    );
-
-    if (!imagePart) {
-      throw new EffectsApiError('Google Gemini API response did not contain image data.', undefined, true);
-    }
-
-    let processedImage: string | undefined;
-
-    if (imagePart.inlineData?.data) {
-      const mimeType = imagePart.inlineData.mimeType || 'image/png';
-      const dataString = imagePart.inlineData.data;
-      processedImage = dataString.startsWith('data:')
-        ? dataString
-        : `data:${mimeType};base64,${dataString}`;
-    } else if (imagePart.text) {
-      const match = imagePart.text.match(/data:image\/[a-zA-Z0-9.+-]+;base64,[A-Za-z0-9+/=]+/);
-      if (match) {
-        processedImage = match[0];
-      } else {
-        const cleaned = imagePart.text.replace(/[^A-Za-z0-9+/=]/g, '');
-        processedImage = `data:image/png;base64,${cleaned}`;
-      }
-    }
-
-    if (!processedImage) {
-      throw new EffectsApiError('Failed to parse image data from Google Gemini response.', undefined, true);
-    }
+    const processedImage = data.image.startsWith('data:')
+      ? data.image
+      : `data:image/png;base64,${data.image}`;
 
     return processedImage;
   } catch (error) {
