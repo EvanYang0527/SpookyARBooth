@@ -194,7 +194,9 @@ export async function applyEffect(
       }
     ],
     generationConfig: {
-      responseMimeType: 'image/png'
+      // Gemini currently allows only text-based MIME types for responses.
+      // Requesting JSON lets us continue parsing the returned image payload.
+      responseMimeType: 'application/json'
     }
   };
 
