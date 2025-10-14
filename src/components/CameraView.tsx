@@ -12,6 +12,8 @@ export default function CameraView({ onCapture, isProcessing }: CameraViewProps)
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [error, setError] = useState<string>('');
   const [isCameraReady, setIsCameraReady] = useState(false);
+  const [isFrozen, setIsFrozen] = useState(false);
+  const [frozenFrame, setFrozenFrame] = useState<string | null>(null);
 
   useEffect(() => {
     startCamera();
@@ -62,9 +64,27 @@ export default function CameraView({ onCapture, isProcessing }: CameraViewProps)
     if (ctx) {
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       const imageData = canvas.toDataURL('image/jpeg', 0.9);
+      setFrozenFrame(imageData);
+      setIsFrozen(true);
+      if (!video.paused) {
+        video.pause();
+      }
       onCapture(imageData);
     }
   };
+
+  useEffect(() => {
+    if (!isProcessing && isFrozen && videoRef.current) {
+      const playPromise = videoRef.current.play();
+      if (playPromise) {
+        playPromise.catch(err => {
+          console.error('Error resuming camera playback:', err);
+        });
+      }
+      setIsFrozen(false);
+      setFrozenFrame(null);
+    }
+  }, [isProcessing, isFrozen]);
 
   const retryCamera = () => {
     stopCamera();
@@ -96,6 +116,17 @@ export default function CameraView({ onCapture, isProcessing }: CameraViewProps)
           muted
           className="w-full h-full object-cover"
         />
+
+        {isFrozen && frozenFrame && (
+          <div className="absolute inset-0 bg-gray-900/40 flex items-center justify-center">
+            <img
+              src={frozenFrame}
+              alt="Captured frame preview"
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 border-4 border-purple-400/60 m-8 rounded-lg animate-pulse"></div>
+          </div>
+        )}
 
         {!isCameraReady && (
           <div className="absolute inset-0 flex items-center justify-center bg-gray-900/80">
