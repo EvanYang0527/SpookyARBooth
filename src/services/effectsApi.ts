@@ -1,5 +1,6 @@
-import { GoogleGenAI } from '@google/genai';
 import { EffectType } from '../components/EffectPicker';
+
+const GENERATIVE_LANGUAGE_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 
 type ExtractedImage = {
   base64: string;
@@ -178,26 +179,49 @@ export async function applyEffect(
 
   const prompt = buildPrompt(effect, intensity);
   try {
-    const ai = new GoogleGenAI({ apiKey });
-    const response = await ai.models.generateContent({
-      model,
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            { text: prompt },
-            {
-              inlineData: {
-                data: base64Image,
-                mimeType: sourceMimeType
+    const endpoint = `${GENERATIVE_LANGUAGE_API_BASE}/models/${encodeURIComponent(model)}:generateContent`;
+    const response = await fetch(`${endpoint}?key=${encodeURIComponent(apiKey)}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              { text: prompt },
+              {
+                inlineData: {
+                  data: base64Image,
+                  mimeType: sourceMimeType
+                }
               }
-            }
-          ]
-        }
-      ]
+            ]
+          }
+        ]
+      })
     });
 
-    const extractedImage = extractImageFromResponse(response);
+    if (!response.ok) {
+      let errorMessage = `Google AI request failed with status ${response.status}`;
+      try {
+        const errorPayload = await response.json();
+        const apiError = (errorPayload as { error?: { message?: string } }).error?.message;
+        if (apiError) {
+          errorMessage = apiError;
+        }
+      } catch (parseError) {
+        if (parseError instanceof Error && parseError.message) {
+          errorMessage += ` (${parseError.message})`;
+        }
+      }
+
+      throw new EffectsApiError(errorMessage, response.status, response.status === 429 || response.status >= 500);
+    }
+
+    const payload = await response.json();
+    const extractedImage = extractImageFromResponse(payload);
 
     if (!extractedImage?.base64) {
       throw new EffectsApiError('AI response missing image data', undefined, false);
