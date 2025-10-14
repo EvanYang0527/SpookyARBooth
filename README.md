@@ -46,15 +46,17 @@ cd spooky-ar-photo-booth
 npm install
 ```
 
-3. Configure environment variables by creating a `.env.development` (or `.env`) file with your Google Gemini credentials:
+3. Configure environment variables by creating a `.env.development` (or `.env`) file with your Azure OpenAI Image Generation details:
 ```env
-GOOGLE_API_KEY=your_google_gemini_api_key
-# Optional: override the default Gemini image model
-# GOOGLE_IMAGE_MODEL=gemini-2.5-flash-image
+VITE_AZURE_OPENAI_ENDPOINT=https://your-resource-name.openai.azure.com/
+VITE_AZURE_OPENAI_API_KEY=your_azure_openai_key
+VITE_AZURE_OPENAI_IMAGE_DEPLOYMENT=gpt-image-deployment-name
+# Optional overrides
+# VITE_AZURE_OPENAI_API_VERSION=2024-02-01
+# VITE_AZURE_OPENAI_IMAGE_SIZE=1024x1024
 ```
 
-By default the app targets the `gemini-2.5-flash-image` model using the official `@google/genai` SDK. Set `GOOGLE_IMAGE_MODEL` if you
-want to experiment with another compatible image generation model.
+The endpoint should be the base URL of your Azure OpenAI resource. The deployment value should match the image generation deployment (for example, a `gpt-image-1` or `dall-e` deployment). You can adjust the API version or output size if your resource requires different settings.
 
 ### Development
 
@@ -79,7 +81,7 @@ npm run preview
 
 ## AI Effects API
 
-The app now connects directly to the Google Gemini API and sends the captured photo (as base64) alongside effect-specific prompts. Gemini returns the processed image as base64, which is displayed in the results panel.
+The app connects directly to the Azure OpenAI Image Generation service. It sends the captured photo (as base64) alongside effect-specific prompts to the configured deployment. Azure OpenAI returns the processed image as base64, which is displayed in the results panel.
 
 ### Available Effects
 
@@ -94,7 +96,7 @@ The app handles:
 - Network errors (with retry)
 - API errors (4xx, 5xx)
 - Camera access errors
-- Missing Gemini configuration
+- Missing Azure OpenAI configuration
 
 Retryable errors (5xx, 429) will automatically retry up to 2 times with exponential backoff.
 
@@ -145,7 +147,7 @@ The app is a static site and can be deployed to:
 - AWS S3 + CloudFront
 - Any static hosting service
 
-Make sure to set the `GOOGLE_API_KEY` (and optionally `GOOGLE_IMAGE_MODEL`) environment variables in your deployment platform.
+Make sure to set the `VITE_AZURE_OPENAI_ENDPOINT`, `VITE_AZURE_OPENAI_API_KEY`, and `VITE_AZURE_OPENAI_IMAGE_DEPLOYMENT` environment variables in your deployment platform.
 
 ## Customization
 
@@ -178,8 +180,8 @@ Update `src/services/effectsApi.ts` to customize:
 - Check if another app is using the camera
 
 ### API errors
-- Verify `GOOGLE_API_KEY` (and optionally `GOOGLE_IMAGE_MODEL`) are set correctly
-- Check API endpoint is accessible
+- Verify `VITE_AZURE_OPENAI_ENDPOINT`, `VITE_AZURE_OPENAI_API_KEY`, and `VITE_AZURE_OPENAI_IMAGE_DEPLOYMENT` are set correctly
+- Check that your Azure OpenAI deployment name matches the one configured in the portal
 - Review browser console for detailed errors
 
 ### Build errors
