@@ -49,10 +49,12 @@ npm install
 3. Configure environment variables by creating a `.env.development` (or `.env`) file with your Google Gemini credentials:
 ```env
 GOOGLE_API_KEY=your_google_gemini_api_key
-GOOGLE_API_ENDPOINT=https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent
+# Optional: override the default Gemini image model
+# GOOGLE_IMAGE_MODEL=gemini-2.5-flash-image
 ```
 
-The `GOOGLE_API_ENDPOINT` value above targets the latest Gemini 1.5 Flash model and can be adjusted if you prefer a different model.
+By default the app targets the `gemini-2.5-flash-image` model using the official `@google/genai` SDK. Set `GOOGLE_IMAGE_MODEL` if you
+want to experiment with another compatible image generation model.
 
 ### Development
 
@@ -143,7 +145,7 @@ The app is a static site and can be deployed to:
 - AWS S3 + CloudFront
 - Any static hosting service
 
-Make sure to set the `GOOGLE_API_KEY` and `GOOGLE_API_ENDPOINT` environment variables in your deployment platform.
+Make sure to set the `GOOGLE_API_KEY` (and optionally `GOOGLE_IMAGE_MODEL`) environment variables in your deployment platform.
 
 ## Customization
 
@@ -176,7 +178,7 @@ Update `src/services/effectsApi.ts` to customize:
 - Check if another app is using the camera
 
 ### API errors
-- Verify `GOOGLE_API_KEY` and `GOOGLE_API_ENDPOINT` are set correctly
+- Verify `GOOGLE_API_KEY` (and optionally `GOOGLE_IMAGE_MODEL`) are set correctly
 - Check API endpoint is accessible
 - Review browser console for detailed errors
 

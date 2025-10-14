@@ -1,3 +1,4 @@
+import { GoogleGenAI } from '@google/genai';
 import { EffectType } from '../components/EffectPicker';
 
 type ExtractedImage = {
@@ -160,11 +161,11 @@ export async function applyEffect(
   intensity: number = 70
 ): Promise<string> {
   const apiKey = import.meta.env.GOOGLE_API_KEY;
-  const apiEndpoint = import.meta.env.GOOGLE_API_ENDPOINT;
+  const model = import.meta.env.GOOGLE_IMAGE_MODEL || 'gemini-2.5-flash-image';
 
-  if (!apiKey || !apiEndpoint) {
+  if (!apiKey) {
     throw new EffectsApiError(
-      'Google Gemini API configuration is missing. Please set GOOGLE_API_KEY and GOOGLE_API_ENDPOINT in your .env file.',
+      'Google Gemini API configuration is missing. Please set GOOGLE_API_KEY in your .env file.',
       undefined,
       false
     );
@@ -176,63 +177,27 @@ export async function applyEffect(
   const sourceMimeType = mimeTypeMatch?.[1] || 'image/png';
 
   const prompt = buildPrompt(effect, intensity);
-  const url = `${apiEndpoint}${apiEndpoint.includes('?') ? '&' : '?'}key=${encodeURIComponent(apiKey)}`;
-
-  const requestBody = {
-    contents: [
-      {
-        role: 'user' as const,
-        parts: [
-          { text: prompt },
-          {
-            inlineData: {
-              data: base64Image,
-              mimeType: sourceMimeType
-            }
-          }
-        ]
-      }
-    ],
-    generationConfig: {
-      responseMimeType: 'application/json'
-    }
-  };
-
   try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestBody),
+    const ai = new GoogleGenAI({ apiKey });
+    const response = await ai.models.generateContent({
+      model,
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { text: prompt },
+            {
+              inlineData: {
+                data: base64Image,
+                mimeType: sourceMimeType
+              }
+            }
+          ]
+        }
+      ]
     });
 
-    if (!response.ok) {
-      const isRetryable = response.status >= 500 || response.status === 429;
-
-      let errorMessage = `Gemini API request failed with status ${response.status}`;
-      try {
-        const errorData = await response.json();
-        if (errorData && typeof errorData === 'object') {
-          const message =
-            (errorData.error && typeof errorData.error === 'object'
-              ? (errorData.error.message as string | undefined)
-              : undefined) ||
-            (errorData.message as string | undefined);
-          errorMessage = message || errorMessage;
-        }
-      } catch {
-        const fallbackMessage = await response.text();
-        if (fallbackMessage) {
-          errorMessage = fallbackMessage;
-        }
-      }
-
-      throw new EffectsApiError(errorMessage, response.status, isRetryable);
-    }
-
-    const data = await response.json();
-    const extractedImage = extractImageFromResponse(data);
+    const extractedImage = extractImageFromResponse(response);
 
     if (!extractedImage?.base64) {
       throw new EffectsApiError('AI response missing image data', undefined, false);
@@ -257,11 +222,16 @@ export async function applyEffect(
       );
     }
 
-    throw new EffectsApiError(
-      `Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      undefined,
-      false
-    );
+    const statusCode = typeof (error as { status?: number }).status === 'number'
+      ? (error as { status?: number }).status
+      : undefined;
+    const errorMessage =
+      (error instanceof Error && error.message) ||
+      (typeof error === 'object' && error && 'message' in error
+        ? String((error as { message?: unknown }).message)
+        : 'Unknown error');
+
+    throw new EffectsApiError(`Unexpected error: ${errorMessage}`, statusCode, statusCode === 429 || (statusCode ?? 0) >= 500);
   }
 }
 
