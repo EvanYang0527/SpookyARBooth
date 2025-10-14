@@ -46,15 +46,13 @@ cd spooky-ar-photo-booth
 npm install
 ```
 
-3. Configure environment variables:
-```bash
-cp .env.example .env
+3. Configure environment variables by creating a `.env.development` (or `.env`) file with your Google Gemini credentials:
+```env
+GOOGLE_API_KEY=your_google_gemini_api_key
+GOOGLE_API_ENDPOINT=https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent
 ```
 
-4. Edit `.env` and add your AI Effects API endpoint:
-```env
-VITE_EFFECTS_API=https://your-api-endpoint.com/api
-```
+The `GOOGLE_API_ENDPOINT` value above targets the latest Gemini 1.5 Flash model and can be adjusted if you prefer a different model.
 
 ### Development
 
@@ -79,31 +77,7 @@ npm run preview
 
 ## AI Effects API
 
-### Endpoint Specification
-
-The app expects an AI effects API with the following specification:
-
-**POST** `${VITE_EFFECTS_API}/applyEffect`
-
-**Request Body:**
-```json
-{
-  "image": "<base64-encoded-image>",
-  "effect": "cartoon_ghost",
-  "intensity": 70
-}
-```
-
-**Response:**
-```json
-{
-  "image": "<base64-encoded-processed-image>",
-  "meta": {
-    "effect": "cartoon_ghost",
-    "elapsed_ms": 1000
-  }
-}
-```
+The app now connects directly to the Google Gemini API and sends the captured photo (as base64) alongside effect-specific prompts. Gemini returns the processed image as base64, which is displayed in the results panel.
 
 ### Available Effects
 
@@ -118,7 +92,7 @@ The app handles:
 - Network errors (with retry)
 - API errors (4xx, 5xx)
 - Camera access errors
-- Missing API configuration
+- Missing Gemini configuration
 
 Retryable errors (5xx, 429) will automatically retry up to 2 times with exponential backoff.
 
@@ -169,7 +143,7 @@ The app is a static site and can be deployed to:
 - AWS S3 + CloudFront
 - Any static hosting service
 
-Make sure to set the `VITE_EFFECTS_API` environment variable in your deployment platform.
+Make sure to set the `GOOGLE_API_KEY` and `GOOGLE_API_ENDPOINT` environment variables in your deployment platform.
 
 ## Customization
 
@@ -202,7 +176,7 @@ Update `src/services/effectsApi.ts` to customize:
 - Check if another app is using the camera
 
 ### API errors
-- Verify `VITE_EFFECTS_API` is set correctly
+- Verify `GOOGLE_API_KEY` and `GOOGLE_API_ENDPOINT` are set correctly
 - Check API endpoint is accessible
 - Review browser console for detailed errors
 
