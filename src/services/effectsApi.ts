@@ -194,7 +194,7 @@ export async function applyEffect(
       }
     ],
     generationConfig: {
-      responseMimeType: 'image/png'
+      responseMimeType: 'application/json'
     }
   };
 
