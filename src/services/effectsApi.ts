@@ -1,6 +1,6 @@
 import { EffectType } from '../components/EffectPicker';
 
-const GENERATIVE_LANGUAGE_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
+const DEFAULT_IMAGE_SIZE = '1024x1024';
 
 type ExtractedImage = {
   base64: string;
@@ -97,9 +97,9 @@ const extractImageFromResponse = (payload: unknown): ExtractedImage | null => {
     return null;
   }
 
-  const data = payload as Record<string, unknown>;
+  const payloadData = payload as Record<string, unknown>;
 
-  const candidates = data.candidates;
+  const candidates = payloadData.candidates;
   if (Array.isArray(candidates)) {
     for (const candidate of candidates) {
       const parts = (candidate as { content?: { parts?: unknown[] } }).content?.parts;
@@ -114,7 +114,7 @@ const extractImageFromResponse = (payload: unknown): ExtractedImage | null => {
     }
   }
 
-  const images = data.images;
+  const images = payloadData.images;
   if (Array.isArray(images)) {
     for (const image of images) {
       const extracted = extractBase64FromPart(image);
@@ -124,7 +124,7 @@ const extractImageFromResponse = (payload: unknown): ExtractedImage | null => {
     }
   }
 
-  const predictions = data.predictions;
+  const predictions = payloadData.predictions;
   if (Array.isArray(predictions)) {
     for (const prediction of predictions) {
       const extracted = extractBase64FromPart(prediction);
@@ -134,7 +134,17 @@ const extractImageFromResponse = (payload: unknown): ExtractedImage | null => {
     }
   }
 
-  const image = data.image;
+  const dataArray = payloadData.data;
+  if (Array.isArray(dataArray)) {
+    for (const item of dataArray) {
+      const extracted = extractBase64FromPart(item);
+      if (extracted?.base64) {
+        return extracted;
+      }
+    }
+  }
+
+  const image = payloadData.image;
   if (image) {
     const extracted = extractBase64FromPart(image);
     if (extracted?.base64) {
@@ -156,17 +166,40 @@ export class EffectsApiError extends Error {
   }
 }
 
+const base64ToBlob = (base64: string, mimeType: string): Blob => {
+  const normalizedBase64 = base64.replace(/\s/g, '');
+  const byteCharacters = atob(normalizedBase64);
+  const sliceSize = 1024;
+  const byteArrays: Uint8Array[] = [];
+
+  for (let offset = 0; offset < byteCharacters.length; offset += sliceSize) {
+    const slice = byteCharacters.slice(offset, offset + sliceSize);
+    const byteNumbers = new Array(slice.length);
+
+    for (let i = 0; i < slice.length; i++) {
+      byteNumbers[i] = slice.charCodeAt(i);
+    }
+
+    byteArrays.push(new Uint8Array(byteNumbers));
+  }
+
+  return new Blob(byteArrays, { type: mimeType });
+};
+
 export async function applyEffect(
   imageData: string,
   effect: EffectType,
   intensity: number = 70
 ): Promise<string> {
-  const apiKey = import.meta.env.GOOGLE_API_KEY;
-  const model = import.meta.env.GOOGLE_IMAGE_MODEL || 'gemini-2.5-flash-image';
+  const endpoint = import.meta.env.VITE_AZURE_OPENAI_ENDPOINT;
+  const apiKey = import.meta.env.VITE_AZURE_OPENAI_API_KEY;
+  const deployment = import.meta.env.VITE_AZURE_OPENAI_IMAGE_DEPLOYMENT;
+  const apiVersion = import.meta.env.VITE_AZURE_OPENAI_API_VERSION || '2024-02-01';
+  const requestedSize = import.meta.env.VITE_AZURE_OPENAI_IMAGE_SIZE || DEFAULT_IMAGE_SIZE;
 
-  if (!apiKey) {
+  if (!endpoint || !apiKey || !deployment) {
     throw new EffectsApiError(
-      'Google Gemini API configuration is missing. Please set GOOGLE_API_KEY in your .env file.',
+      'Azure OpenAI configuration is missing. Please set VITE_AZURE_OPENAI_ENDPOINT, VITE_AZURE_OPENAI_API_KEY, and VITE_AZURE_OPENAI_IMAGE_DEPLOYMENT in your .env file.',
       undefined,
       false
     );
@@ -176,35 +209,30 @@ export async function applyEffect(
   const base64Image = rawBase64 || imageData;
   const mimeTypeMatch = meta?.match(/data:(.*);base64/);
   const sourceMimeType = mimeTypeMatch?.[1] || 'image/png';
+  const fileExtension = sourceMimeType.split('/')[1] || 'png';
 
   const prompt = buildPrompt(effect, intensity);
+
   try {
-    const endpoint = `${GENERATIVE_LANGUAGE_API_BASE}/models/${encodeURIComponent(model)}:generateContent`;
-    const response = await fetch(`${endpoint}?key=${encodeURIComponent(apiKey)}`, {
+    const formData = new FormData();
+    formData.append('prompt', prompt);
+    formData.append('size', requestedSize);
+    formData.append('response_format', 'b64_json');
+    formData.append('image', base64ToBlob(base64Image, sourceMimeType), `source.${fileExtension}`);
+
+    const url = `${endpoint.replace(/\/?$/, '/')}` +
+      `openai/deployments/${encodeURIComponent(deployment)}/images/edits?api-version=${encodeURIComponent(apiVersion)}`;
+
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'api-key': apiKey
       },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: 'user',
-            parts: [
-              { text: prompt },
-              {
-                inlineData: {
-                  data: base64Image,
-                  mimeType: sourceMimeType
-                }
-              }
-            ]
-          }
-        ]
-      })
+      body: formData
     });
 
     if (!response.ok) {
-      let errorMessage = `Google AI request failed with status ${response.status}`;
+      let errorMessage = `Azure OpenAI request failed with status ${response.status}`;
       try {
         const errorPayload = await response.json();
         const apiError = (errorPayload as { error?: { message?: string } }).error?.message;
