@@ -1,20 +1,77 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Header from './components/Header';
 import CameraView from './components/CameraView';
 import EffectPicker, { EffectType } from './components/EffectPicker';
 import ResultPanel from './components/ResultPanel';
 import { applyEffectWithRetry, EffectsApiError } from './services/effectsApi';
 import { Ghost, AlertCircle } from 'lucide-react';
+import LoginForm from './components/LoginForm';
 
 type AppState = 'camera' | 'processing' | 'result' | 'error';
 
+const AUTH_TOKEN_KEY = 'spooky_ar_auth_token';
+const AUTH_USERNAME_KEY = 'spooky_ar_username';
+
 function App() {
+  const authPreference = import.meta.env.VITE_REQUIRE_AUTH;
+  const isAuthDisabled =
+    authPreference === 'false' || (import.meta.env.DEV && authPreference !== 'true');
   const [state, setState] = useState<AppState>('camera');
   const [selectedEffect, setSelectedEffect] = useState<EffectType>('cartoon_ghost');
   const [capturedImage, setCapturedImage] = useState<string>('');
   const [processedImage, setProcessedImage] = useState<string>('');
   const [error, setError] = useState<string>('');
   const [isRetryable, setIsRetryable] = useState(false);
+  const [authToken, setAuthToken] = useState<string | null>(() => {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+    return localStorage.getItem(AUTH_TOKEN_KEY);
+  });
+  const [username, setUsername] = useState<string | null>(() => {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+    return localStorage.getItem(AUTH_USERNAME_KEY);
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    if (authToken) {
+      localStorage.setItem(AUTH_TOKEN_KEY, authToken);
+    } else {
+      localStorage.removeItem(AUTH_TOKEN_KEY);
+    }
+  }, [authToken]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    if (username) {
+      localStorage.setItem(AUTH_USERNAME_KEY, username);
+    } else {
+      localStorage.removeItem(AUTH_USERNAME_KEY);
+    }
+  }, [username]);
+
+  const handleLoginSuccess = (auth: { token: string; username: string }) => {
+    setAuthToken(auth.token);
+    setUsername(auth.username);
+  };
+
+  const handleLogout = () => {
+    setAuthToken(null);
+    setUsername(null);
+    setCapturedImage('');
+    setProcessedImage('');
+    setError('');
+    setState('camera');
+  };
 
   const handleCapture = async (imageData: string) => {
     setCapturedImage(imageData);
@@ -72,19 +129,25 @@ function App() {
     }
   };
 
+  if (!authToken && !isAuthDisabled) {
+    return <LoginForm onSuccess={handleLoginSuccess} />;
+  }
+
+  const effectiveUsername = isAuthDisabled ? username ?? 'Local Tester' : username ?? undefined;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900">
-      <Header />
+      <Header username={effectiveUsername} onLogout={isAuthDisabled ? undefined : handleLogout} />
 
       <main className="container mx-auto px-4 py-8">
         <div className="text-center mb-8">
           <h1 className="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-purple-400 mb-3 flex items-center justify-center gap-3">
-            <Ghost className="w-10 h-10 text-orange-400 animate-bounce" />
-            Spooky AR Photo Booth
-            <Ghost className="w-10 h-10 text-purple-400 animate-bounce" style={{ animationDelay: '0.3s' }} />
+            {/* <Ghost className="w-10 h-10 text-orange-400 animate-bounce" /> */}
+            Carnival Photo Booth
+            {/* <Ghost className="w-10 h-10 text-purple-400 animate-bounce" style={{ animationDelay: '0.3s' }} /> */}
           </h1>
           <p className="text-gray-400 text-lg">
-            Capture your photo and add haunting Halloween effects
+            Capture your photo and add Carnivally effects
           </p>
         </div>
 
@@ -106,7 +169,8 @@ function App() {
 
           {state === 'result' && (
             <ResultPanel
-              imageData={processedImage}
+              originalImage={capturedImage}
+              processedImage={processedImage}
               effect={selectedEffect}
               onRetake={handleRetake}
             />

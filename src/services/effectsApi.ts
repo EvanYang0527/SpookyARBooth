@@ -1,7 +1,5 @@
 import { EffectType } from '../components/EffectPicker';
 
-const DEFAULT_IMAGE_SIZE = '1024x1024';
-
 type ExtractedImage = {
   base64: string;
   mimeType?: string;
@@ -9,13 +7,41 @@ type ExtractedImage = {
 
 const EFFECT_PROMPTS: Record<EffectType, string> = {
   cartoon_ghost:
-    'Add a whimsical translucent cartoon ghost hovering just behind the subject. Keep the subject sharp and friendly while blending the ghost with a cool blue glow.',
+    'Add whimsical translucent cartoon ghosts swirling just behind each person and sprinkle floating spectral lanterns around the group. Subtly tint the surrounding environment with a playful moonlit glow while keeping every person otherwise unchanged.',
   haunted_fog:
-    'Wrap the scene in a creeping supernatural fog that pools around the subject. Maintain clarity on faces while adding soft volumetric lighting and moonlit ambience.',
+    'Wrap the scene in a creeping supernatural fog that pools around every person, with hints of moonbeams and distant haunted silhouettes in the background. Maintain clarity on faces while adding soft volumetric lighting and moonlit ambience.',
   vhs_glitch:
-    'Transform the photo with a retro VHS horror vibe. Introduce analog scanlines, color channel offsets, and spectral distortion while preserving the subject as the focal point.',
+    'Transform the photo with a retro VHS horror vibe. Introduce analog scanlines, color channel offsets, and spectral distortion while turning the surroundings into a flickering haunted TV scene with warped neon signage, keeping each person as a crisp focal point.',
   pumpkin_aura:
-    'Surround the subject with a fiery pumpkin-orange aura. Add subtle embers, jack-o\'-lantern inspired lighting, and warm highlights that enhance the Halloween mood.'
+    'Surround every person with a fiery pumpkin-orange aura. Add subtle embers, glowing jack-o\'-lanterns, and enchanted autumn foliage radiating from the environment while keeping each person recognizable.',
+  witch_makeover:
+    'Give each person a stylish witch costume complete with pointed hats, flowing cloaks, and glowing spell props that suit their pose. Apply theatrical makeup with emerald eyeshadow and dramatic liner to every face. Keep most of the background environment unchanged, only adding a faint magical glow near the group.',
+  vampire_glam:
+    'Transform each person into an elegant vampire aristocrat with tailored dark ensembles, high collars, and ornate jewelry. Apply pale porcelain skin, wine-red lipstick, and subtle fang highlights to every face while keeping the background largely unchanged aside from soft moonlit accents around the group.',
+  zombie_decay:
+    'Create a cinematic zombie makeover on every person. Add distressed clothing textures, cracked and mottled skin with cool undertones, and tasteful faux blood near mouths while keeping each person recognizable. Enhance with sunken eyeshadow and contouring, and keep the background mostly unchanged except for subtle atmospheric haze near the group.',
+  bubble_mirage:
+    'Fill the scene with dreamy pastel bubbles drifting across the frame and bathe the environment in a soft carnival glow. Keep every person clear and in focus while adding gentle light refractions and translucent bubble reflections around them.',
+  laser_carnival:
+    'Add vibrant neon laser beams and energetic carnival lighting streaking around the group. Maintain sharp detail on every person while layering in colorful light rays, prisms, and energized atmosphere that suggest motion and music.',
+  sparkle_rain:
+    'Let shimmering glitter rain fall around every person, catching warm light as it drifts through the scene. Preserve facial clarity and highlight edges with a glowing shimmer while the background picks up twinkling reflections and soft bokeh.',
+  ai_masquerade:
+    'Project futuristic holographic masquerade masks onto each face, blending metallic sheens with translucent light effects that feel high-tech yet elegant. Keep everyone fully recognizable while enhancing the environment with subtle digital overlays and prismatic glow.',
+  glitch_glam:
+    'Apply stylish holographic glitches and neon shimmer bands that warp around each person like a fashion-forward distortion. Retain crystal-clear facial features while adding layered scanlines, pixel shifts, and iridescent trails that give the scene an avant-garde energy.',
+  confetti_explosion:
+    'Freeze a joyful mid-motion burst of confetti surrounding the group with vivid color and depth. Ensure every person stays crisp while scattering paper pieces, sparkles, and celebratory motion blur through the air.',
+  mask_magic:
+    'Adorn each person with ornate carnival masks, sculpted metallic accents, and curling golden smoke that feels theatrical yet refined. Maintain facial recognition while blending in warm ambient lighting and rich festival textures around the group.',
+  electric_groove:
+    'Infuse the photo with neon motion trails and rhythmic light waves dancing around every person. Keep their outfits and expressions sharp while adding dynamic streaks, glowing outlines, and colorful pulses that convey a lively carnival performance.',
+  joker_illusion:
+    'Transform each person with bold harlequin makeup, jewel-toned jester collars, and holographic cap-and-bells accents that match their pose. Spin a deck of luminous playing cards and ribbons of emerald and violet light around the group while keeping every face expressive and sharp.',
+  midway_marquee:
+    'Surround the group with a glowing carnival midway marquee complete with retro bulbs, striped tent drapery, and cascading warm light. Keep every person crystal clear while extending the scene with soft lens flares, marquee signage, and subtle fairground silhouettes in the distance.',
+  cotton_candy_twirl:
+    'Envelope the group in pastel cotton candy clouds that swirl gently and emit a sugary prismatic glow. Maintain skin tones and facial detail while adding sparkling sugar dust, soft pink and blue highlights, and playful fairground bokeh throughout the background.'
 };
 
 const getIntensityDescriptor = (intensity: number): string => {
@@ -29,10 +55,11 @@ const buildPrompt = (effect: EffectType, intensity: number): string => {
   const descriptor = getIntensityDescriptor(intensity);
 
   return [
-    'You are a creative Halloween photo editor. Apply the requested transformation directly to the provided photo.',
+    'You are a creative Halloween photo editor. Apply the requested transformation directly to the provided photo and support multiple people if present.',
     EFFECT_PROMPTS[effect],
-    `The overall intensity should feel ${descriptor}.` ,
-    'Respect the subject\'s facial features and keep them recognizable.',
+    `Aim for a ${descriptor} intensity so the transformation feels intentional without overpowering the original photo.`,
+    'Make sure every person is clear and the overall photo is not too dark. Respect each person\'s facial features and keep them without any unintended edits.',
+    'Do not remove or merge people; treat each individual consistently.',
     'Return only the transformed image without text overlays or borders.'
   ].join(' ');
 };
@@ -124,6 +151,26 @@ const extractImageFromResponse = (payload: unknown): ExtractedImage | null => {
     }
   }
 
+  const generatedImages = (payloadData as { generatedImages?: unknown }).generatedImages;
+  if (Array.isArray(generatedImages)) {
+    for (const generated of generatedImages) {
+      const extracted = extractBase64FromPart(generated);
+      if (extracted?.base64) {
+        return extracted;
+      }
+    }
+  }
+
+  const imageArtifacts = (payloadData as { imageArtifacts?: unknown }).imageArtifacts;
+  if (Array.isArray(imageArtifacts)) {
+    for (const artifact of imageArtifacts) {
+      const extracted = extractBase64FromPart(artifact);
+      if (extracted?.base64) {
+        return extracted;
+      }
+    }
+  }
+
   const predictions = payloadData.predictions;
   if (Array.isArray(predictions)) {
     for (const prediction of predictions) {
@@ -166,73 +213,64 @@ export class EffectsApiError extends Error {
   }
 }
 
-const base64ToBlob = (base64: string, mimeType: string): Blob => {
-  const normalizedBase64 = base64.replace(/\s/g, '');
-  const byteCharacters = atob(normalizedBase64);
-  const sliceSize = 1024;
-  const byteArrays: Uint8Array[] = [];
-
-  for (let offset = 0; offset < byteCharacters.length; offset += sliceSize) {
-    const slice = byteCharacters.slice(offset, offset + sliceSize);
-    const byteNumbers = new Array(slice.length);
-
-    for (let i = 0; i < slice.length; i++) {
-      byteNumbers[i] = slice.charCodeAt(i);
-    }
-
-    byteArrays.push(new Uint8Array(byteNumbers));
-  }
-
-  return new Blob(byteArrays, { type: mimeType });
-};
-
 export async function applyEffect(
   imageData: string,
   effect: EffectType,
   intensity: number = 70
 ): Promise<string> {
-  const endpoint = import.meta.env.VITE_AZURE_OPENAI_ENDPOINT;
-  const apiKey = import.meta.env.VITE_AZURE_OPENAI_API_KEY;
-  const deployment = import.meta.env.VITE_AZURE_OPENAI_IMAGE_DEPLOYMENT;
-  const apiVersion = import.meta.env.VITE_AZURE_OPENAI_API_VERSION || '2024-02-01';
-  const requestedSize = import.meta.env.VITE_AZURE_OPENAI_IMAGE_SIZE || DEFAULT_IMAGE_SIZE;
+  const apiBase =
+    import.meta.env.VITE_GEMINI_API_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta';
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  const model = import.meta.env.VITE_GEMINI_MODEL || 'gemini-2.5-flash-image';
 
-  if (!endpoint || !apiKey || !deployment) {
+  if (!apiKey) {
     throw new EffectsApiError(
-      'Azure OpenAI configuration is missing. Please set VITE_AZURE_OPENAI_ENDPOINT, VITE_AZURE_OPENAI_API_KEY, and VITE_AZURE_OPENAI_IMAGE_DEPLOYMENT in your .env file.',
+      'Gemini configuration is missing. Please set VITE_GEMINI_API_KEY (and optionally VITE_GEMINI_MODEL / VITE_GEMINI_API_BASE_URL) in your .env file.',
       undefined,
       false
     );
   }
 
+  const sanitizedBaseUrl = apiBase.replace(/\/+$/, '');
+
   const [meta, rawBase64] = imageData.includes(',') ? imageData.split(',', 2) : [undefined, imageData];
-  const base64Image = rawBase64 || imageData;
+  const base64Image = (rawBase64 || imageData).replace(/\s/g, '');
   const mimeTypeMatch = meta?.match(/data:(.*);base64/);
   const sourceMimeType = mimeTypeMatch?.[1] || 'image/png';
-  const fileExtension = sourceMimeType.split('/')[1] || 'png';
 
   const prompt = buildPrompt(effect, intensity);
 
   try {
-    const formData = new FormData();
-    formData.append('prompt', prompt);
-    formData.append('size', requestedSize);
-    formData.append('response_format', 'b64_json');
-    formData.append('image', base64ToBlob(base64Image, sourceMimeType), `source.${fileExtension}`);
+    const url =
+      `${sanitizedBaseUrl}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
-    const url = `${endpoint.replace(/\/?$/, '/')}` +
-      `openai/deployments/${encodeURIComponent(deployment)}/images/edits?api-version=${encodeURIComponent(apiVersion)}`;
+    const body = {
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { text: prompt },
+            {
+              inlineData: {
+                data: base64Image,
+                mimeType: sourceMimeType
+              }
+            }
+          ]
+        }
+      ]
+    };
 
     const response = await fetch(url, {
       method: 'POST',
       headers: {
-        'api-key': apiKey
+        'Content-Type': 'application/json'
       },
-      body: formData
+      body: JSON.stringify(body)
     });
 
     if (!response.ok) {
-      let errorMessage = `Azure OpenAI request failed with status ${response.status}`;
+      let errorMessage = `Gemini request failed with status ${response.status}`;
       try {
         const errorPayload = await response.json();
         const apiError = (errorPayload as { error?: { message?: string } }).error?.message;
@@ -252,7 +290,7 @@ export async function applyEffect(
     const extractedImage = extractImageFromResponse(payload);
 
     if (!extractedImage?.base64) {
-      throw new EffectsApiError('AI response missing image data', undefined, false);
+      throw new EffectsApiError('Gemini response missing image data', undefined, false);
     }
 
     const outputMimeType = extractedImage.mimeType || 'image/png';
@@ -290,7 +328,7 @@ export async function applyEffect(
 export async function applyEffectWithRetry(
   imageData: string,
   effect: EffectType,
-  intensity: number = 70,
+  intensity: number = 28,
   maxRetries: number = 2
 ): Promise<string> {
   let lastError: EffectsApiError | null = null;

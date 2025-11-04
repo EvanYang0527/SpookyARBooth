@@ -46,17 +46,15 @@ cd spooky-ar-photo-booth
 npm install
 ```
 
-3. Configure environment variables by creating a `.env.development` (or `.env`) file with your Azure OpenAI Image Generation details:
+3. Configure environment variables by creating a `.env.development` (or `.env`) file with your Gemini API details:
 ```env
-VITE_AZURE_OPENAI_ENDPOINT=https://your-resource-name.openai.azure.com/
-VITE_AZURE_OPENAI_API_KEY=your_azure_openai_key
-VITE_AZURE_OPENAI_IMAGE_DEPLOYMENT=gpt-image-deployment-name
+VITE_GEMINI_API_KEY=your_gemini_api_key
 # Optional overrides
-# VITE_AZURE_OPENAI_API_VERSION=2024-02-01
-# VITE_AZURE_OPENAI_IMAGE_SIZE=1024x1024
+# VITE_GEMINI_MODEL=gemini-2.5-flash-image
+# VITE_GEMINI_API_BASE_URL=https://generativelanguage.googleapis.com/v1beta
 ```
 
-The endpoint should be the base URL of your Azure OpenAI resource. The deployment value should match the image generation deployment (for example, a `gpt-image-1` or `dall-e` deployment). You can adjust the API version or output size if your resource requires different settings.
+By default the app targets the publicly hosted Gemini endpoint (`https://generativelanguage.googleapis.com/v1beta`) with the `gemini-2.5-flash-image` model. Override the defaults only if your project uses a different base URL or model variant.
 
 ### Development
 
@@ -81,7 +79,9 @@ npm run preview
 
 ## AI Effects API
 
-The app connects directly to the Azure OpenAI Image Generation service. It sends the captured photo (as base64) alongside effect-specific prompts to the configured deployment. Azure OpenAI returns the processed image as base64, which is displayed in the results panel.
+The app calls Google’s Gemini image generation API. It sends the captured photo (base64) and an effect-specific prompt to the configured image model, which returns the transformed image (base64) for display in the results panel.
+
+> **Security note:** The current setup calls the Gemini API directly from the browser, which exposes your API key to end users. For production deployments, route requests through your own backend or serverless function and keep the key secret.
 
 ### Available Effects
 
@@ -89,6 +89,9 @@ The app connects directly to the Azure OpenAI Image Generation service. It sends
 - `haunted_fog` - Haunted Fog effect
 - `vhs_glitch` - VHS Glitch effect
 - `pumpkin_aura` - Pumpkin Aura effect
+- `witch_makeover` - Witch costume and magical makeup
+- `vampire_glam` - Glamorous vampire attire and styling
+- `zombie_decay` - Undead costume with cinematic FX makeup
 
 ### Error Handling
 
@@ -96,7 +99,7 @@ The app handles:
 - Network errors (with retry)
 - API errors (4xx, 5xx)
 - Camera access errors
-- Missing Azure OpenAI configuration
+- Missing Gemini configuration
 
 Retryable errors (5xx, 429) will automatically retry up to 2 times with exponential backoff.
 
@@ -147,7 +150,7 @@ The app is a static site and can be deployed to:
 - AWS S3 + CloudFront
 - Any static hosting service
 
-Make sure to set the `VITE_AZURE_OPENAI_ENDPOINT`, `VITE_AZURE_OPENAI_API_KEY`, and `VITE_AZURE_OPENAI_IMAGE_DEPLOYMENT` environment variables in your deployment platform.
+Make sure to set the `VITE_GEMINI_API_KEY` (and, if needed, `VITE_GEMINI_MODEL` / `VITE_GEMINI_API_BASE_URL`) environment variables in your deployment platform.
 
 ## Customization
 
@@ -180,8 +183,8 @@ Update `src/services/effectsApi.ts` to customize:
 - Check if another app is using the camera
 
 ### API errors
-- Verify `VITE_AZURE_OPENAI_ENDPOINT`, `VITE_AZURE_OPENAI_API_KEY`, and `VITE_AZURE_OPENAI_IMAGE_DEPLOYMENT` are set correctly
-- Check that your Azure OpenAI deployment name matches the one configured in the portal
+- Verify `VITE_GEMINI_API_KEY` (and any optional overrides) are set correctly
+- Confirm your Google Cloud project has the Generative Language API enabled for the requested model
 - Review browser console for detailed errors
 
 ### Build errors
