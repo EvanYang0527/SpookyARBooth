@@ -98,7 +98,7 @@ export default function CameraView({ onCapture, isProcessing }: CameraViewProps)
         <p className="text-red-400 text-center mb-4">{error}</p>
         <button
           onClick={retryCamera}
-          className="px-6 py-2 bg-orange-500 hover:bg-orange-600 text-gray-900 font-semibold rounded-lg transition-colors"
+          className="px-6 py-2 bg-amber-500 hover:bg-amber-600 text-amber-950 font-semibold rounded-lg transition-colors"
         >
           Retry
         </button>
@@ -108,13 +108,14 @@ export default function CameraView({ onCapture, isProcessing }: CameraViewProps)
 
   return (
     <div className="relative w-full">
-      <div className="relative aspect-video bg-gray-800 rounded-xl overflow-hidden border-2 border-orange-500/30 shadow-2xl shadow-orange-500/20">
+      <div className="relative aspect-video bg-amber-950/60 rounded-xl overflow-hidden border-2 border-amber-500/30 shadow-2xl shadow-amber-500/20">
         <video
           ref={videoRef}
           autoPlay
           playsInline
           muted
           className="w-full h-full object-cover"
+          style={{ transform: 'scaleX(-1)' }}
         />
 
         {isFrozen && frozenFrame && (
@@ -124,20 +125,20 @@ export default function CameraView({ onCapture, isProcessing }: CameraViewProps)
               alt="Captured frame preview"
               className="w-full h-full object-cover"
             />
-            <div className="absolute inset-0 border-4 border-purple-400/60 m-8 rounded-lg animate-pulse"></div>
+            <div className="absolute inset-0 border-4 border-amber-400/60 m-8 rounded-lg animate-pulse"></div>
           </div>
         )}
 
         {!isCameraReady && (
           <div className="absolute inset-0 flex items-center justify-center bg-gray-900/80">
             <div className="text-center">
-              <Camera className="w-12 h-12 text-orange-400 mx-auto mb-3 animate-pulse" />
-              <p className="text-orange-400">Starting camera...</p>
+              <Camera className="w-12 h-12 text-amber-400 mx-auto mb-3 animate-pulse" />
+              <p className="text-amber-400">Starting camera...</p>
             </div>
           </div>
         )}
 
-        <div className="absolute inset-0 pointer-events-none border-4 border-dashed border-purple-400/30 m-8 rounded-lg"></div>
+        <div className="absolute inset-0 pointer-events-none border-4 border-dashed border-amber-400/30 m-8 rounded-lg"></div>
       </div>
 
       <canvas ref={canvasRef} className="hidden" />
@@ -146,7 +147,7 @@ export default function CameraView({ onCapture, isProcessing }: CameraViewProps)
         <button
           onClick={captureImage}
           disabled={!isCameraReady || isProcessing}
-          className="px-8 py-4 bg-gradient-to-r from-orange-500 to-purple-600 hover:from-orange-600 hover:to-purple-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold rounded-xl transition-all transform hover:scale-105 disabled:scale-100 shadow-lg disabled:cursor-not-allowed flex items-center gap-3"
+          className="px-8 py-4 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold rounded-xl transition-all transform hover:scale-105 disabled:scale-100 shadow-lg disabled:cursor-not-allowed flex items-center gap-3"
         >
           <Camera className="w-6 h-6" />
           {isProcessing ? 'Processing...' : 'Capture Photo'}

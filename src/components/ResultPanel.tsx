@@ -10,12 +10,23 @@ interface ResultPanelProps {
   isProcessing?: boolean;
 }
 
-const FRAME_ASSET_PATH = '/CarnivalFrame.png';
-const FRAME_WINDOW = {
-  widthRatio: 1,
-  heightRatio: 0.8,
-  offsetXRatio: 0,
-  offsetYRatio: -0.04
+type FrameOption = 'Gratitude1' | 'Gratitude2';
+
+const FRAME_CONFIGS: Record<FrameOption, {
+  path: string;
+  label: string;
+  window: { widthRatio: number; heightRatio: number; offsetXRatio: number; offsetYRatio: number };
+}> = {
+  Gratitude1: {
+    path: '/Gratitude1.png',
+    label: 'Gratitude (Autumn)',
+    window: { widthRatio: 0.84, heightRatio: 0.73, offsetXRatio: 0, offsetYRatio: 0.03 }
+  },
+  Gratitude2: {
+    path: '/Gratitude2.png',
+    label: 'Gratitude (Classic)',
+    window: { widthRatio: 0.88, heightRatio: 0.7, offsetXRatio: 0, offsetYRatio: 0.0 }
+  }
 };
 
 const loadImage = (src: string): Promise<HTMLImageElement> => {
@@ -70,6 +81,12 @@ export default function ResultPanel({
   onRetake,
   isProcessing
 }: ResultPanelProps) {
+  const [showOriginal, setShowOriginal] = useState(false);
+  const [selectedFrame, setSelectedFrame] = useState<FrameOption>('Gratitude2');
+
+  const frameConfig = FRAME_CONFIGS[selectedFrame];
+  const FRAME_WINDOW = frameConfig.window;
+
   const frameWindowStyle: CSSProperties = {
     position: 'absolute',
     left: `${((1 - FRAME_WINDOW.widthRatio) / 2 + FRAME_WINDOW.offsetXRatio) * 100}%`,
@@ -78,14 +95,13 @@ export default function ResultPanel({
     height: `${FRAME_WINDOW.heightRatio * 100}%`
   };
 
-  const [showOriginal, setShowOriginal] = useState(false);
   const activeImage = showOriginal ? originalImage || processedImage : processedImage || originalImage;
 
   const downloadImage = async () => {
     try {
       const [resultImage, frameImage] = await Promise.all([
         loadImage(activeImage),
-        loadImage(FRAME_ASSET_PATH)
+        loadImage(frameConfig.path)
       ]);
 
       const width = frameImage.naturalWidth || resultImage.naturalWidth || resultImage.width;
@@ -115,7 +131,7 @@ export default function ResultPanel({
       const link = document.createElement('a');
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
       const label = showOriginal ? 'original' : effect;
-      link.download = `spooky-photo-${label}-${timestamp}.png`;
+      link.download = `gratitude-photo-${label}-${timestamp}.png`;
       link.href = framedImage;
       link.click();
     } catch (error) {
@@ -123,56 +139,90 @@ export default function ResultPanel({
 
       const link = document.createElement('a');
       const fallbackStamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-      link.download = `spooky-photo-${effect}-${fallbackStamp}.png`;
+      link.download = `gratitude-photo-${effect}-${fallbackStamp}.png`;
       link.href = activeImage;
       link.click();
     }
   };
 
   const effectNames: Record<EffectType, string> = {
-    cartoon_ghost: 'Cartoon Ghost',
-    haunted_fog: 'Haunted Fog',
-    vhs_glitch: 'VHS Glitch',
-    pumpkin_aura: 'Pumpkin Aura',
-    witch_makeover: 'Witch Makeover',
-    vampire_glam: 'Vampire Glam',
-    zombie_decay: 'Zombie Decay',
-    bubble_mirage: 'Bubble Mirage',
-    laser_carnival: 'Laser Carnival',
-    sparkle_rain: 'Sparkle Rain',
-    ai_masquerade: 'AI Masquerade',
-    glitch_glam: 'Glitch Glam',
-    confetti_explosion: 'Confetti Explosion',
-    mask_magic: 'Mask Magic',
-    electric_groove: 'Electric Groove',
-    joker_illusion: 'Joker Illusion',
-    midway_marquee: 'Midway Marquee',
-    cotton_candy_twirl: 'Cotton Candy Twirl'
+    thanksgiving_glow: 'Thanksgiving Glow',
+    autumn_leaves: 'Autumn Leaves',
+    grateful_sparkle: 'Grateful Sparkle',
+    harvest_magic: 'Harvest Magic',
+    cozy_thanksgiving: 'Cozy Thanksgiving',
+    fall_confetti: 'Fall Confetti',
+    golden_harvest: 'Golden Harvest',
+    thankful_moments: 'Thankful Moments',
+    pumpkin_patch: 'Pumpkin Patch',
+    autumn_bokeh: 'Autumn Bokeh',
+    fall_crown: 'Fall Crown',
+    thanksgiving_magic: 'Thanksgiving Magic'
   };
 
   return (
     <div className="w-full">
-      <div className="relative aspect-[3/2] bg-gray-800 rounded-xl overflow-hidden border-2 border-orange-500/30 shadow-2xl shadow-orange-500/20">
+      {/* Frame selector */}
+      {!isProcessing && (
+        <div className="mb-4">
+          <p className="text-center text-amber-400 font-semibold mb-3">Choose Your Frame</p>
+          <div className="flex gap-4 justify-center">
+            {(Object.keys(FRAME_CONFIGS) as FrameOption[]).map((frameKey) => {
+              const config = FRAME_CONFIGS[frameKey];
+              const isActive = selectedFrame === frameKey;
+              return (
+                <button
+                  key={frameKey}
+                  onClick={() => setSelectedFrame(frameKey)}
+                  className={`relative rounded-xl overflow-hidden border-4 transition-all transform hover:scale-105 shadow-lg ${
+                    isActive
+                      ? 'border-amber-400 shadow-amber-400/50'
+                      : 'border-gray-600 hover:border-amber-400/60'
+                  }`}
+                  style={{ width: 180, height: 120 }}
+                >
+                  <img
+                    src={config.path}
+                    alt={config.label}
+                    className="w-full h-full object-fill"
+                  />
+                  {isActive && (
+                    <div className="absolute inset-0 bg-amber-400/10" />
+                  )}
+                  <div className={`absolute bottom-0 left-0 right-0 py-1 text-xs font-semibold text-center ${
+                    isActive ? 'bg-amber-400 text-gray-900' : 'bg-gray-900/80 text-gray-300'
+                  }`}>
+                    {config.label}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Photo preview with frame */}
+      <div className="relative aspect-[3/2] bg-gray-800 rounded-xl overflow-hidden border-2 border-amber-500/30 shadow-2xl shadow-amber-500/20">
         {isProcessing ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900/95">
-            <Loader2 className="w-16 h-16 text-orange-400 animate-spin mb-4" />
-            <p className="text-orange-400 text-lg font-semibold">Applying spooky effects...</p>
+            <Loader2 className="w-16 h-16 text-amber-400 animate-spin mb-4" />
+            <p className="text-amber-400 text-lg font-semibold">Applying Thanksgiving effects...</p>
             <p className="text-gray-400 text-sm mt-2">This may take a few moments</p>
           </div>
         ) : (
           <div className="absolute inset-0">
             <div
-              className="overflow-hidden rounded-lg"
+              className="overflow-hidden"
               style={frameWindowStyle}
             >
               <img
                 src={activeImage}
-                alt={showOriginal ? 'Original photo' : 'Spooky photo result'}
+                alt={showOriginal ? 'Original photo' : 'Thanksgiving photo result'}
                 className="w-full h-full object-cover"
               />
             </div>
             <img
-              src={FRAME_ASSET_PATH}
+              src={frameConfig.path}
               alt=""
               aria-hidden="true"
               className="absolute inset-0 w-full h-full object-fill pointer-events-none select-none"
@@ -184,17 +234,17 @@ export default function ResultPanel({
       {!isProcessing && (
         <>
           <div className="mt-4 flex flex-col items-center gap-3 text-center">
-            <p className="text-purple-400 font-semibold">
+            <p className="text-amber-400 font-semibold">
               Effect Applied: <span className="text-orange-400">{effectNames[effect]}</span>
             </p>
             <p className="text-gray-400 text-sm">
-              Currently viewing: {showOriginal ? 'Original Photo' : 'Spooky Remix'}
+              Currently viewing: {showOriginal ? 'Original Photo' : 'Thanksgiving Remix'}
             </p>
             <button
               onClick={() => setShowOriginal((prev) => !prev)}
               className="px-6 py-2 bg-gray-800/80 hover:bg-gray-700 text-white rounded-lg border border-gray-700 transition-colors"
             >
-              {showOriginal ? 'Show Spooky Photo' : 'Show Original Photo'}
+              {showOriginal ? 'Show Thanksgiving Photo' : 'Show Original Photo'}
             </button>
           </div>
 
@@ -209,7 +259,7 @@ export default function ResultPanel({
 
             <button
               onClick={onRetake}
-              className="px-8 py-4 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white font-bold rounded-xl transition-all transform hover:scale-105 shadow-lg flex items-center justify-center gap-3"
+              className="px-8 py-4 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold rounded-xl transition-all transform hover:scale-105 shadow-lg flex items-center justify-center gap-3"
             >
               <RotateCcw className="w-6 h-6" />
               Retake Photo

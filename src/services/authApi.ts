@@ -1,42 +1,23 @@
-type LoginPayload = {
-  username: string;
-  password: string;
-};
-
 export type LoginResponse = {
   token: string;
+  role: 'admin' | 'user';
+  username: string;
 };
 
-const sanitizeBaseUrl = (rawBaseUrl: string | undefined): string => {
-  if (!rawBaseUrl) {
-    return '';
-  }
-
-  return rawBaseUrl.replace(/\/+$/, '');
-};
-
-export async function login(payload: LoginPayload): Promise<LoginResponse> {
-  const apiBase = sanitizeBaseUrl(import.meta.env.VITE_API_BASE_URL);
-  const url = `${apiBase}/login`;
-
-  const response = await fetch(url, {
+export async function login(payload: { username: string; password: string }): Promise<LoginResponse> {
+  const response = await fetch('/api/auth/login', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(payload)
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
-    const errorText = await response.text().catch(() => '');
-    throw new Error(errorText || 'Login failed. Please check your credentials and try again.');
+    const data = await response.json().catch(() => ({})) as { error?: string };
+    throw new Error(data.error || 'Login failed. Please check your credentials and try again.');
   }
 
-  const data = (await response.json()) as Partial<LoginResponse>;
+  const data = await response.json() as Partial<LoginResponse>;
+  if (!data.token) throw new Error('Login response did not include an access token.');
 
-  if (!data?.token) {
-    throw new Error('Login response did not include an access token.');
-  }
-
-  return { token: data.token };
+  return { token: data.token, role: data.role ?? 'user', username: data.username ?? '' };
 }

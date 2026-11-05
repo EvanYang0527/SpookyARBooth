@@ -1,9 +1,8 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-  readonly VITE_GEMINI_API_KEY?: string;
-  readonly VITE_GEMINI_MODEL?: string;
-  readonly VITE_GEMINI_API_BASE_URL?: string;
+  // Set to "true" to enforce login even in dev mode
+  readonly VITE_REQUIRE_AUTH?: string;
 }
 
 interface ImportMeta {
