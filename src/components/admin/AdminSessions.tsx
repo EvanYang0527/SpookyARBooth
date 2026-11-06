@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { Loader2, RefreshCw, X } from 'lucide-react';
 import { getSessions, AdminSession } from '../../services/adminApi';
 
@@ -17,6 +17,27 @@ const EFFECT_LABELS: Record<string, string> = {
   thanksgiving_magic: 'Thanksgiving Magic',
 };
 
+type FrameOption = 'Gratitude1' | 'Gratitude2';
+
+const FRAME_CONFIGS: Record<FrameOption, {
+  path: string;
+  label: string;
+  window: { widthRatio: number; heightRatio: number; offsetXRatio: number; offsetYRatio: number };
+}> = {
+  Gratitude1: {
+    path: '/Gratitude1.png',
+    label: 'Gratitude (Autumn)',
+    window: { widthRatio: 0.84, heightRatio: 0.73, offsetXRatio: 0, offsetYRatio: 0.03 },
+  },
+  Gratitude2: {
+    path: '/Gratitude2.png',
+    label: 'Gratitude (Classic)',
+    window: { widthRatio: 0.88, heightRatio: 0.7, offsetXRatio: 0, offsetYRatio: 0.0 },
+  },
+};
+
+type ViewTab = 'original' | 'generated' | 'framed';
+
 function formatDate(iso: string) {
   return new Date(iso).toLocaleString();
 }
@@ -26,7 +47,8 @@ export default function AdminSessions() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selected, setSelected] = useState<AdminSession | null>(null);
-  const [showOriginal, setShowOriginal] = useState(false);
+  const [view, setView] = useState<ViewTab>('generated');
+  const [selectedFrame, setSelectedFrame] = useState<FrameOption>('Gratitude2');
 
   async function load() {
     setLoading(true);
@@ -41,6 +63,22 @@ export default function AdminSessions() {
   }
 
   useEffect(() => { load(); }, []);
+
+  function openSession(s: AdminSession) {
+    setSelected(s);
+    setView('generated');
+  }
+
+  const frameConfig = FRAME_CONFIGS[selectedFrame];
+  const fw = frameConfig.window;
+  const frameWindowStyle: CSSProperties = {
+    position: 'absolute',
+    left: `${((1 - fw.widthRatio) / 2 + fw.offsetXRatio) * 100}%`,
+    top: `${((1 - fw.heightRatio) / 2 + fw.offsetYRatio) * 100}%`,
+    width: `${fw.widthRatio * 100}%`,
+    height: `${fw.heightRatio * 100}%`,
+    overflow: 'hidden',
+  };
 
   if (loading) {
     return (
@@ -75,7 +113,7 @@ export default function AdminSessions() {
         {sessions.map((s) => (
           <button
             key={s.id}
-            onClick={() => { setSelected(s); setShowOriginal(false); }}
+            onClick={() => openSession(s)}
             className="group relative rounded-xl overflow-hidden border-2 border-amber-800/40 hover:border-amber-500/60 transition-all shadow-lg aspect-square bg-amber-950/50"
           >
             {s.generatedUrl ? (
@@ -102,52 +140,92 @@ export default function AdminSessions() {
           onClick={() => setSelected(null)}
         >
           <div
-            className="bg-amber-950 border border-amber-700/40 rounded-2xl shadow-2xl max-w-2xl w-full p-4"
+            className="bg-amber-950 border border-amber-700/40 rounded-2xl shadow-2xl w-full max-w-2xl p-4"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Header */}
             <div className="flex items-start justify-between mb-3">
               <div>
                 <p className="text-amber-200 font-semibold">{selected.username}</p>
                 <p className="text-amber-300/60 text-sm">{EFFECT_LABELS[selected.effect] ?? selected.effect}</p>
                 <p className="text-amber-200/40 text-xs mt-0.5">{formatDate(selected.timestamp)}</p>
               </div>
-              <button
-                onClick={() => setSelected(null)}
-                className="text-amber-200/60 hover:text-amber-200 p-1"
-              >
+              <button onClick={() => setSelected(null)} className="text-amber-200/60 hover:text-amber-200 p-1">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="aspect-video bg-black rounded-xl overflow-hidden mb-3">
-              <img
-                src={(showOriginal ? selected.originalUrl : selected.generatedUrl) ?? ''}
-                alt={showOriginal ? 'Original photo' : 'Generated photo'}
-                className="w-full h-full object-contain"
-              />
+            {/* View tabs */}
+            <div className="flex gap-1 bg-amber-900/40 rounded-lg p-1 mb-3">
+              {(['original', 'generated', 'framed'] as ViewTab[]).map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setView(v)}
+                  className={`flex-1 py-1.5 rounded-md text-xs font-semibold capitalize transition-all ${
+                    view === v
+                      ? 'bg-amber-500 text-amber-950'
+                      : 'text-amber-300 hover:text-amber-100'
+                  }`}
+                >
+                  {v === 'framed' ? 'With Frame' : v.charAt(0).toUpperCase() + v.slice(1)}
+                </button>
+              ))}
             </div>
 
-            <div className="flex gap-3 justify-center">
-              <button
-                onClick={() => setShowOriginal(false)}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                  !showOriginal
-                    ? 'bg-amber-500 text-amber-950'
-                    : 'bg-amber-900/50 text-amber-300 hover:bg-amber-800/60'
-                }`}
-              >
-                Generated
-              </button>
-              <button
-                onClick={() => setShowOriginal(true)}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                  showOriginal
-                    ? 'bg-amber-500 text-amber-950'
-                    : 'bg-amber-900/50 text-amber-300 hover:bg-amber-800/60'
-                }`}
-              >
-                Original
-              </button>
+            {/* Frame selector — only shown for framed view */}
+            {view === 'framed' && (
+              <div className="flex gap-2 justify-center mb-3">
+                {(Object.keys(FRAME_CONFIGS) as FrameOption[]).map((key) => (
+                  <button
+                    key={key}
+                    onClick={() => setSelectedFrame(key)}
+                    className={`px-3 py-1 rounded-lg text-xs font-semibold border transition-all ${
+                      selectedFrame === key
+                        ? 'border-amber-400 bg-amber-400/20 text-amber-300'
+                        : 'border-amber-800/40 text-amber-200/50 hover:border-amber-600/60'
+                    }`}
+                  >
+                    {FRAME_CONFIGS[key].label}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Photo display */}
+            <div className="rounded-xl overflow-hidden bg-black aspect-[3/2] relative">
+              {view === 'original' && (
+                <img
+                  src={selected.originalUrl ?? ''}
+                  alt="Original photo"
+                  className="w-full h-full object-contain"
+                />
+              )}
+
+              {view === 'generated' && (
+                <img
+                  src={selected.generatedUrl ?? ''}
+                  alt="Generated photo"
+                  className="w-full h-full object-contain"
+                />
+              )}
+
+              {view === 'framed' && (
+                <div className="absolute inset-0">
+                  <div style={frameWindowStyle}>
+                    <img
+                      src={selected.generatedUrl ?? ''}
+                      alt="Generated photo"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <img
+                    src={frameConfig.path}
+                    alt=""
+                    aria-hidden="true"
+                    className="absolute inset-0 w-full h-full object-fill pointer-events-none select-none"
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>
