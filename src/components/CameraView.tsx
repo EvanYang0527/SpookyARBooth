@@ -64,6 +64,8 @@ export default function CameraView({ onCapture, isProcessing, colors }: CameraVi
 
     const ctx = canvas.getContext('2d');
     if (ctx) {
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       const imageData = canvas.toDataURL('image/jpeg', 0.9);
       setFrozenFrame(imageData);
