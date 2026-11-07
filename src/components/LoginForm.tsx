@@ -3,7 +3,7 @@ import { Leaf, Lock, Loader2, User } from 'lucide-react';
 import { login } from '../services/authApi';
 
 type LoginFormProps = {
-  onSuccess: (auth: { token: string; username: string; role: 'admin' | 'user' }) => void;
+  onSuccess: (auth: { token: string; username: string; role: 'admin' | 'user'; theme: string }) => void;
 };
 
 export default function LoginForm({ onSuccess }: LoginFormProps) {
@@ -22,7 +22,7 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
     setError(null);
     try {
       const result = await login({ username: username.trim(), password });
-      onSuccess({ token: result.token, username: result.username, role: result.role });
+      onSuccess({ token: result.token, username: result.username, role: result.role, theme: result.theme });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed. Please try again.');
     } finally {

@@ -24,6 +24,7 @@ function getTableClient(tableName: string) {
 export interface UserRecord {
   username: string;
   role: 'admin' | 'user';
+  theme: string; // ThemeId
   expiresAt: string; // ISO string or '' for never
   createdAt: string;
   createdBy: string;
@@ -89,6 +90,7 @@ interface UserEntity {
   rowKey: string;
   passwordHash: string;
   role: string;
+  theme: string;
   expiresAt: string;
   createdAt: string;
   createdBy: string;
@@ -102,6 +104,7 @@ export async function getUserByUsername(username: string): Promise<(UserRecord &
       username: entity.rowKey,
       passwordHash: entity.passwordHash,
       role: entity.role as 'admin' | 'user',
+      theme: entity.theme || 'gratitude_itsba2026',
       expiresAt: entity.expiresAt || '',
       createdAt: entity.createdAt,
       createdBy: entity.createdBy,
@@ -123,6 +126,7 @@ export async function listUsers(): Promise<UserRecord[]> {
     users.push({
       username: entity.rowKey,
       role: entity.role as 'admin' | 'user',
+      theme: entity.theme || 'gratitude_itsba2026',
       expiresAt: entity.expiresAt || '',
       createdAt: entity.createdAt,
       createdBy: entity.createdBy,
@@ -135,6 +139,7 @@ export async function createUser(data: {
   username: string;
   password: string;
   role: 'admin' | 'user';
+  theme: string;
   expiresAt: string; // ISO string or '' for never
   createdBy: string;
 }) {
@@ -145,10 +150,19 @@ export async function createUser(data: {
     rowKey: data.username,
     passwordHash,
     role: data.role,
+    theme: data.theme || 'gratitude_itsba2026',
     expiresAt: data.expiresAt,
     createdAt: new Date().toISOString(),
     createdBy: data.createdBy,
   });
+}
+
+export async function updateUserTheme(username: string, theme: string) {
+  const client = getTableClient('users');
+  await client.updateEntity(
+    { partitionKey: 'users', rowKey: username, theme },
+    'Merge'
+  );
 }
 
 export async function updateUserExpiry(username: string, expiresAt: string) {

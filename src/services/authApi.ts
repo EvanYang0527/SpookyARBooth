@@ -2,6 +2,7 @@ export type LoginResponse = {
   token: string;
   role: 'admin' | 'user';
   username: string;
+  theme: string;
 };
 
 export async function login(payload: { username: string; password: string }): Promise<LoginResponse> {
@@ -19,5 +20,5 @@ export async function login(payload: { username: string; password: string }): Pr
   const data = await response.json() as Partial<LoginResponse>;
   if (!data.token) throw new Error('Login response did not include an access token.');
 
-  return { token: data.token, role: data.role ?? 'user', username: data.username ?? '' };
+  return { token: data.token, role: data.role ?? 'user', username: data.username ?? '', theme: data.theme ?? 'gratitude_itsba2026' };
 }

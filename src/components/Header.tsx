@@ -1,63 +1,61 @@
-import { Leaf, LogOut, UserCircle, LayoutDashboard } from 'lucide-react';
+import { Leaf, Cpu, LogOut, UserCircle, LayoutDashboard } from 'lucide-react';
+import type { ThemeConfig } from '../themes';
 
 type HeaderProps = {
   username?: string;
   role?: 'admin' | 'user' | null;
   onLogout?: () => void;
   onAdminClick?: () => void;
+  themeConfig: ThemeConfig;
 };
 
-export default function Header({ username, role, onLogout, onAdminClick }: HeaderProps) {
+export default function Header({ username, role, onLogout, onAdminClick, themeConfig }: HeaderProps) {
+  const { colors } = themeConfig;
+  const LogoIcon = themeConfig.id === 'oix_ainative_2026' ? Cpu : Leaf;
+
   return (
-    <header className="sticky top-0 z-50 bg-amber-950 border-b border-amber-600/30 shadow-lg">
-      <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+    <header className={`sticky top-0 z-50 ${colors.headerBg} border-b ${colors.headerBorder} shadow-lg`}>
+      <div className="container mx-auto px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-amber-600 rounded-lg flex items-center justify-center shadow-lg shadow-amber-600/50">
-            <Leaf className="w-7 h-7 text-amber-950" />
+          <div className={`w-10 h-10 ${colors.logoBg} rounded-lg flex items-center justify-center`}>
+            <LogoIcon className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-sm font-semibold text-amber-400">ITS Technology Innovation Office</h1>
-            <p className="text-xs text-amber-200/60">Gratitude Photo Booth</p>
+            <h1 className={`text-sm font-semibold ${colors.textPrimary}`}>{themeConfig.orgLabel}</h1>
+            <p className={`text-xs ${colors.textSecondary}`}>{themeConfig.boothLabel}</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-6">
-          <div className="hidden sm:flex items-center gap-2 text-amber-400">
-            <Leaf className="w-5 h-5 animate-pulse" />
-            <span className="text-sm font-medium">Gratitude Photo Booth</span>
-          </div>
+        {username && (
+          <div className="flex items-center gap-3">
+            {role === 'admin' && onAdminClick && (
+              <button
+                type="button"
+                onClick={onAdminClick}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${colors.adminBtn}`}
+              >
+                <LayoutDashboard className="w-4 h-4" />
+                Admin
+              </button>
+            )}
 
-          {username && (
-            <div className="flex items-center gap-3">
-              {role === 'admin' && onAdminClick && (
-                <button
-                  type="button"
-                  onClick={onAdminClick}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-600/20 border border-amber-500/40 text-amber-300 hover:bg-amber-600/30 text-sm font-medium transition-colors"
-                >
-                  <LayoutDashboard className="w-4 h-4" />
-                  Admin
-                </button>
-              )}
-
-              <div className="flex items-center gap-2 bg-amber-900/60 border border-amber-500/40 text-amber-100 px-3 py-1.5 rounded-full shadow-lg shadow-amber-900/20">
-                <UserCircle className="w-5 h-5 text-amber-400" />
-                <span className="text-sm font-medium">{username}</span>
-              </div>
-
-              {onLogout && (
-                <button
-                  type="button"
-                  onClick={onLogout}
-                  className="p-2 rounded-full text-amber-200/60 hover:text-amber-400 hover:bg-amber-900/50 transition-colors"
-                  aria-label="Sign out"
-                >
-                  <LogOut className="w-4 h-4" />
-                </button>
-              )}
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full shadow-lg ${colors.userPill}`}>
+              <UserCircle className={`w-5 h-5 ${colors.textPrimary}`} />
+              <span className="text-sm font-medium">{username}</span>
             </div>
-          )}
-        </div>
+
+            {onLogout && (
+              <button
+                type="button"
+                onClick={onLogout}
+                className={`p-2 rounded-full transition-colors ${colors.logoutBtn}`}
+                aria-label="Sign out"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </header>
   );

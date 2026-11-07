@@ -1,3 +1,30 @@
+const OIX_EFFECT_PROMPTS: Record<string, string> = {
+  oix_ai_aura:
+    'Surround each person with a soft, ethereal neural network aura. Add delicate glowing blue and cyan luminescent halos that suggest digital consciousness and AI intelligence. Include faint floating geometric particles and subtle binary code traces drifting in the atmosphere. Keep every person\'s face completely recognizable and naturally lit while creating a sense of being part of an intelligent system.',
+  oix_holographic:
+    'Transform the scene with stunning holographic effects. Add iridescent prismatic light refractions and translucent geometric holographic panels floating around each person. Include subtle grid lines suggesting augmented reality overlays with a deep dark background. Keep faces sharp and recognizable while giving clothing and surroundings a futuristic holographic shimmer in cool blue and cyan tones.',
+  oix_cyber_circuit:
+    'Overlay elegant circuit board patterns and digital pathways around each person. Add glowing PCB traces, neural connection nodes, and electric-blue data conduits weaving organically through the background. Keep people fully visible with natural features while surrounding them with a sophisticated technological tapestry in deep blue and cyan.',
+  oix_neural_glow:
+    'Illuminate the scene with soft glowing neural network pathways. Add interconnected luminescent nodes and synaptic connections flowing through the environment in cool blue and cyan tones, as if the group is inside a living AI system. Create a sense of intelligent connectivity while keeping every face naturally recognizable and clearly visible.',
+  oix_digital_transform:
+    'Apply a subtle digital transformation where the background transitions from the physical world into a sleek digital environment. Add geometric shapes, clean grid lines, and softly glowing data visualizations around the group. Keep each person\'s appearance completely natural and in focus while the world around them evolves into a sophisticated digital aesthetic.',
+  oix_agent_mode:
+    'Create an AI agent activation aesthetic around each person. Add subtle scanning grid overlays, pulsing status indicators, and translucent agent interface elements floating nearby. Include a cool blue ambient glow suggesting active AI processing and agent coordination. Keep faces natural and recognizable while conveying a sense of AI-empowered focus and capability.',
+  oix_quantum_state:
+    'Surround each person with quantum computing visualization effects. Add probability wave patterns, quantum bit spheres, and interference overlays in deep blue and indigo tones. Create an atmosphere suggesting quantum superposition and computational power with elegant geometric precision while keeping every person clearly visible and naturally lit.',
+  oix_future_vision:
+    'Apply an augmented reality future-vision overlay to the scene. Add transparent AR interface elements, predictive data displays, and clean HUD-style graphics floating around each person. Include subtle depth-of-field digital effects. Keep faces crystal clear and naturally lit while surrounding people with the visual language of an AI-augmented future.',
+  oix_data_stream:
+    'Create a flowing data stream effect around each person with softly cascading luminous particles and information flows in blue and cyan tones. The streams should feel organic and purposeful, converging toward the people as if they are the center of an intelligent data ecosystem. Keep people sharp and naturally lit at the focal point of the stream.',
+  oix_innovation_spark:
+    'Add electric sparks of innovation and creativity around each person with brilliant light bursts, creative energy arcs, and dynamic geometric shapes suggesting breakthrough thinking. Use electric blue, cyan, and white tones for the sparks. Maintain natural faces and ensure the glow adds energy and inspiration without overpowering the people.',
+  oix_ai_native:
+    'Transform the scene to suggest a world where AI is native infrastructure. Add a sophisticated layering of digital depth, ambient AI indicators, cool blue tone color grading, and intelligent system aesthetics. Keep people completely recognizable and naturally lit while surrounding them with the aesthetic of a truly AI-native environment where technology and humanity coexist seamlessly.',
+  oix_open_exchange:
+    'Create a collaborative open innovation atmosphere around the group. Add interconnected networks of light showing knowledge sharing, collaborative neural pathways appearing between people, and an open digital ecosystem aesthetic. Use warm-to-cool gradients suggesting the meeting of human creativity and AI intelligence. Keep everyone\'s face natural, clearly visible, and at the center of the collaborative exchange.',
+};
+
 const EFFECT_PROMPTS: Record<string, string> = {
   thanksgiving_glow:
     'Surround every person with a warm golden Thanksgiving glow. Add softly falling autumn leaves, subtle twinkle lights, and rich amber highlights around the group. Keep every person clear and recognizable while giving the scene a cozy seasonal atmosphere.',
@@ -33,10 +60,14 @@ function getIntensityDescriptor(intensity: number): string {
 }
 
 function buildPrompt(effect: string, intensity: number): string {
-  const effectPrompt = EFFECT_PROMPTS[effect] ?? `Apply a beautiful ${effect} photo effect`;
+  const isOix = effect.startsWith('oix_');
+  const effectPrompt = (isOix ? OIX_EFFECT_PROMPTS : EFFECT_PROMPTS)[effect] ?? `Apply a beautiful ${effect} photo effect`;
   const descriptor = getIntensityDescriptor(intensity);
+  const systemContext = isOix
+    ? 'You are a creative AI-era photo editor specializing in futuristic and technology-themed transformations. Apply the requested transformation directly to the provided photo and support multiple people if present.'
+    : 'You are a creative Thanksgiving photo editor. Apply the requested transformation directly to the provided photo and support multiple people if present.';
   return [
-    'You are a creative Thanksgiving photo editor. Apply the requested transformation directly to the provided photo and support multiple people if present.',
+    systemContext,
     effectPrompt,
     `Aim for a ${descriptor} intensity so the transformation feels intentional without overpowering the original photo.`,
     "Make sure every person is clear and the overall photo is not too dark. Respect each person's facial features and keep them without any unintended edits.",

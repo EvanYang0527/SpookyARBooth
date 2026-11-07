@@ -19,6 +19,7 @@ async function handleResponse<T>(res: Response): Promise<T> {
 export interface AdminUser {
   username: string;
   role: 'admin' | 'user';
+  theme: string;
   expiresAt: string; // ISO string or ''
   createdAt: string;
   createdBy: string;
@@ -34,12 +35,22 @@ export async function createUser(data: {
   username: string;
   password: string;
   role: 'admin' | 'user';
+  theme: string;
   expiresAt: string; // ISO string or ''
 }): Promise<void> {
   const res = await fetch('/api/admin/users', {
     method: 'POST',
     headers: authHeaders(),
     body: JSON.stringify(data),
+  });
+  await handleResponse<unknown>(res);
+}
+
+export async function updateUserTheme(username: string, theme: string): Promise<void> {
+  const res = await fetch(`/api/admin/users/${encodeURIComponent(username)}/theme`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify({ theme }),
   });
   await handleResponse<unknown>(res);
 }

@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { Camera, AlertCircle } from 'lucide-react';
+import type { ThemeColors } from '../themes';
 
 interface CameraViewProps {
   onCapture: (imageData: string) => void;
   isProcessing: boolean;
+  colors: ThemeColors;
 }
 
-export default function CameraView({ onCapture, isProcessing }: CameraViewProps) {
+export default function CameraView({ onCapture, isProcessing, colors }: CameraViewProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -108,7 +110,7 @@ export default function CameraView({ onCapture, isProcessing }: CameraViewProps)
 
   return (
     <div className="relative w-full">
-      <div className="relative aspect-video bg-amber-950/60 rounded-xl overflow-hidden border-2 border-amber-500/30 shadow-2xl shadow-amber-500/20">
+      <div className={`relative aspect-video ${colors.cameraBg} rounded-xl overflow-hidden border-2 ${colors.cameraBorder} shadow-2xl ${colors.cameraGlow}`}>
         <video
           ref={videoRef}
           autoPlay
@@ -132,8 +134,8 @@ export default function CameraView({ onCapture, isProcessing }: CameraViewProps)
         {!isCameraReady && (
           <div className="absolute inset-0 flex items-center justify-center bg-gray-900/80">
             <div className="text-center">
-              <Camera className="w-12 h-12 text-amber-400 mx-auto mb-3 animate-pulse" />
-              <p className="text-amber-400">Starting camera...</p>
+              <Camera className={`w-12 h-12 ${colors.spinnerColor} mx-auto mb-3 animate-pulse`} />
+              <p className={colors.spinnerColor}>Starting camera...</p>
             </div>
           </div>
         )}
@@ -147,7 +149,7 @@ export default function CameraView({ onCapture, isProcessing }: CameraViewProps)
         <button
           onClick={captureImage}
           disabled={!isCameraReady || isProcessing}
-          className="px-8 py-4 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold rounded-xl transition-all transform hover:scale-105 disabled:scale-100 shadow-lg disabled:cursor-not-allowed flex items-center gap-3"
+          className={`px-8 py-4 bg-gradient-to-r ${colors.captureBtn} ${colors.captureBtnHover} disabled:from-gray-600 disabled:to-gray-700 text-white font-bold rounded-xl transition-all transform hover:scale-105 disabled:scale-100 shadow-lg disabled:cursor-not-allowed flex items-center gap-3`}
         >
           <Camera className="w-6 h-6" />
           {isProcessing ? 'Processing...' : 'Capture Photo'}

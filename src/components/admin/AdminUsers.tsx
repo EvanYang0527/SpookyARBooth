@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { UserPlus, Trash2, CalendarClock, Loader2, ShieldCheck, User } from 'lucide-react';
-import { getUsers, createUser, updateUserExpiry, deleteUser, AdminUser } from '../../services/adminApi';
+import { UserPlus, Trash2, CalendarClock, Loader2, ShieldCheck, User, Palette } from 'lucide-react';
+import { getUsers, createUser, updateUserExpiry, updateUserTheme, deleteUser, AdminUser } from '../../services/adminApi';
+import { THEME_OPTIONS } from '../../themes';
 
 function defaultExpiry(): string {
   const d = new Date();
   d.setDate(d.getDate() + 14);
-  return d.toISOString().slice(0, 10); // YYYY-MM-DD for date input
+  return d.toISOString().slice(0, 10);
 }
 
 function formatExpiry(expiresAt: string, isExpired: boolean): string {
@@ -16,25 +17,31 @@ function formatExpiry(expiresAt: string, isExpired: boolean): string {
   return `${d.toLocaleDateString()} (${diff}d left)`;
 }
 
+function themeLabel(themeId: string): string {
+  return THEME_OPTIONS.find(t => t.id === themeId)?.label ?? themeId;
+}
+
 export default function AdminUsers() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Create form state
   const [form, setForm] = useState({
     username: '',
     password: '',
     role: 'user' as 'admin' | 'user',
+    theme: 'gratitude_itsba2026' as string,
     expiresAt: defaultExpiry(),
     neverExpires: false,
   });
   const [formError, setFormError] = useState('');
   const [creating, setCreating] = useState(false);
 
-  // Expiry edit state
   const [editingExpiry, setEditingExpiry] = useState<string | null>(null);
   const [newExpiry, setNewExpiry] = useState('');
+
+  const [editingTheme, setEditingTheme] = useState<string | null>(null);
+  const [newTheme, setNewTheme] = useState('');
 
   async function load() {
     try {
@@ -62,9 +69,10 @@ export default function AdminUsers() {
         username: form.username.trim(),
         password: form.password,
         role: form.role,
+        theme: form.theme,
         expiresAt: form.neverExpires ? '' : new Date(form.expiresAt).toISOString(),
       });
-      setForm({ username: '', password: '', role: 'user', expiresAt: defaultExpiry(), neverExpires: false });
+      setForm({ username: '', password: '', role: 'user', theme: 'gratitude_itsba2026', expiresAt: defaultExpiry(), neverExpires: false });
       await load();
     } catch (e) {
       setFormError((e as Error).message);
@@ -93,6 +101,16 @@ export default function AdminUsers() {
     }
   }
 
+  async function handleUpdateTheme(username: string) {
+    try {
+      await updateUserTheme(username, newTheme);
+      setEditingTheme(null);
+      await load();
+    } catch (e) {
+      alert((e as Error).message);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -114,7 +132,7 @@ export default function AdminUsers() {
             <tr>
               <th className="px-4 py-3 text-left">Username</th>
               <th className="px-4 py-3 text-left">Role</th>
-              <th className="px-4 py-3 text-left">Created by</th>
+              <th className="px-4 py-3 text-left">Theme</th>
               <th className="px-4 py-3 text-left">Expiry</th>
               <th className="px-4 py-3 text-left">Status</th>
               <th className="px-4 py-3 text-left">Actions</th>
@@ -134,7 +152,35 @@ export default function AdminUsers() {
                     {u.role}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-amber-200/60">{u.createdBy}</td>
+                <td className="px-4 py-3 text-amber-200/80">
+                  {editingTheme === u.username ? (
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={newTheme}
+                        onChange={(e) => setNewTheme(e.target.value)}
+                        className="bg-amber-950 border border-amber-700 rounded px-2 py-1 text-amber-100 text-xs"
+                      >
+                        {THEME_OPTIONS.map((t) => (
+                          <option key={t.id} value={t.id}>{t.label}</option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={() => handleUpdateTheme(u.username)}
+                        className="text-xs bg-amber-500 hover:bg-amber-600 text-amber-950 font-semibold px-2 py-1 rounded"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={() => setEditingTheme(null)}
+                        className="text-xs text-amber-400 hover:text-amber-200"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="text-xs">{themeLabel(u.theme ?? 'gratitude_itsba2026')}</span>
+                  )}
+                </td>
                 <td className="px-4 py-3 text-amber-200/80">
                   {editingExpiry === u.username ? (
                     <div className="flex items-center gap-2">
@@ -168,6 +214,16 @@ export default function AdminUsers() {
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        setEditingTheme(u.username);
+                        setNewTheme(u.theme ?? 'gratitude_itsba2026');
+                      }}
+                      className="p-1.5 text-blue-400 hover:text-blue-200 hover:bg-blue-800/40 rounded transition-colors"
+                      title="Change theme"
+                    >
+                      <Palette className="w-4 h-4" />
+                    </button>
                     <button
                       onClick={() => {
                         setEditingExpiry(u.username);
@@ -234,6 +290,18 @@ export default function AdminUsers() {
             >
               <option value="user">User</option>
               <option value="admin">Admin</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-amber-300/70 mb-1">Theme</label>
+            <select
+              value={form.theme}
+              onChange={(e) => setForm((f) => ({ ...f, theme: e.target.value }))}
+              className="w-full bg-amber-950 border border-amber-700/60 rounded-lg px-3 py-2 text-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-500"
+            >
+              {THEME_OPTIONS.map((t) => (
+                <option key={t.id} value={t.id}>{t.label}</option>
+              ))}
             </select>
           </div>
           <div>

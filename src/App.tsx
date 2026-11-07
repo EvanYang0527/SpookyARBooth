@@ -1,19 +1,21 @@
 import { useEffect, useState } from 'react';
 import Header from './components/Header';
 import CameraView from './components/CameraView';
-import EffectPicker, { EffectType } from './components/EffectPicker';
+import EffectPicker from './components/EffectPicker';
 import ResultPanel from './components/ResultPanel';
 import AdminDashboard from './components/admin/AdminDashboard';
 import { applyEffectWithRetry, EffectsApiError } from './services/effectsApi';
 import { AlertCircle } from 'lucide-react';
 import LoginForm from './components/LoginForm';
+import { getTheme } from './themes';
 
 type AppState = 'camera' | 'processing' | 'result' | 'error';
 type Page = 'photobooth' | 'admin';
 
-const AUTH_TOKEN_KEY = 'spooky_ar_auth_token';
+const AUTH_TOKEN_KEY    = 'spooky_ar_auth_token';
 const AUTH_USERNAME_KEY = 'spooky_ar_username';
-const AUTH_ROLE_KEY = 'spooky_ar_role';
+const AUTH_ROLE_KEY     = 'spooky_ar_role';
+const AUTH_THEME_KEY    = 'spooky_ar_theme';
 
 function App() {
   const authPreference = import.meta.env.VITE_REQUIRE_AUTH;
@@ -22,7 +24,6 @@ function App() {
 
   const [page, setPage] = useState<Page>('photobooth');
   const [state, setState] = useState<AppState>('camera');
-  const [selectedEffect, setSelectedEffect] = useState<EffectType>('thanksgiving_glow');
   const [capturedImage, setCapturedImage] = useState<string>('');
   const [processedImage, setProcessedImage] = useState<string>('');
   const [error, setError] = useState<string>('');
@@ -38,6 +39,17 @@ function App() {
     if (typeof window === 'undefined') return null;
     const stored = localStorage.getItem(AUTH_ROLE_KEY);
     return stored === 'admin' || stored === 'user' ? stored : null;
+  });
+  const [theme, setTheme] = useState<string | null>(() =>
+    typeof window !== 'undefined' ? localStorage.getItem(AUTH_THEME_KEY) : null
+  );
+
+  const themeConfig = getTheme(theme);
+
+  const [selectedEffect, setSelectedEffect] = useState<string>(() => {
+    const storedTheme = typeof window !== 'undefined' ? localStorage.getItem(AUTH_THEME_KEY) : null;
+    const config = getTheme(storedTheme);
+    return config.effects[0]?.id ?? 'thanksgiving_glow';
   });
 
   useEffect(() => {
@@ -55,16 +67,25 @@ function App() {
     else localStorage.removeItem(AUTH_ROLE_KEY);
   }, [role]);
 
-  const handleLoginSuccess = (auth: { token: string; username: string; role: 'admin' | 'user' }) => {
+  useEffect(() => {
+    if (theme) localStorage.setItem(AUTH_THEME_KEY, theme);
+    else localStorage.removeItem(AUTH_THEME_KEY);
+  }, [theme]);
+
+  const handleLoginSuccess = (auth: { token: string; username: string; role: 'admin' | 'user'; theme: string }) => {
     setAuthToken(auth.token);
     setUsername(auth.username);
     setRole(auth.role);
+    setTheme(auth.theme);
+    const config = getTheme(auth.theme);
+    setSelectedEffect(config.effects[0]?.id ?? 'thanksgiving_glow');
   };
 
   const handleLogout = () => {
     setAuthToken(null);
     setUsername(null);
     setRole(null);
+    setTheme(null);
     setCapturedImage('');
     setProcessedImage('');
     setError('');
@@ -130,79 +151,84 @@ function App() {
     return <AdminDashboard onBack={() => setPage('photobooth')} />;
   }
 
+  const effectName = themeConfig.effects.find(e => e.id === selectedEffect)?.name ?? selectedEffect;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-950 via-orange-950 to-amber-950">
+    <div className={`h-screen flex flex-col ${themeConfig.colors.mainBg} overflow-hidden`}>
       <Header
         username={effectiveUsername}
         role={effectiveRole}
         onLogout={isAuthDisabled ? undefined : handleLogout}
         onAdminClick={() => setPage('admin')}
+        themeConfig={themeConfig}
       />
 
-      <main className="container mx-auto px-4 py-8">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-500 mb-3 flex items-center justify-center gap-3">
-            Gratitude Photo Booth
-          </h1>
-          <p className="text-amber-200/70 text-lg">
-            Capture your photo and celebrate autumn gratitude
-          </p>
-        </div>
+      <main className="flex-1 flex overflow-hidden">
+        {(state === 'camera' || state === 'processing') && (
+          <>
+            {/* Left: camera feed */}
+            <div className="flex-1 p-4 flex flex-col justify-center min-w-0">
+              <CameraView
+                onCapture={handleCapture}
+                isProcessing={state === 'processing'}
+                colors={themeConfig.colors}
+              />
+            </div>
 
-        <div className="max-w-4xl mx-auto space-y-8">
-          {(state === 'camera' || state === 'processing') && (
-            <>
+            {/* Right: effect picker sidebar */}
+            <div className={`w-80 border-l ${themeConfig.colors.sidebarBorder} overflow-y-auto p-4 ${themeConfig.colors.sidebarBg} flex-shrink-0`}>
               <EffectPicker
+                themeId={themeConfig.id}
+                effects={themeConfig.effects}
+                colors={themeConfig.colors}
                 selectedEffect={selectedEffect}
                 onSelectEffect={setSelectedEffect}
                 disabled={state === 'processing'}
               />
-              <CameraView onCapture={handleCapture} isProcessing={state === 'processing'} />
-            </>
-          )}
+            </div>
+          </>
+        )}
 
-          {state === 'result' && (
+        {state === 'result' && (
+          <div className="flex-1 overflow-y-auto p-4">
             <ResultPanel
               originalImage={capturedImage}
               processedImage={processedImage}
               effect={selectedEffect}
+              effectName={effectName}
+              frames={themeConfig.frames}
+              defaultFrame={themeConfig.defaultFrame}
+              processingText={themeConfig.processingText}
               onRetake={handleRetake}
             />
-          )}
+          </div>
+        )}
 
-          {state === 'error' && (
-            <div className="w-full">
-              <div className="relative w-full aspect-video bg-amber-950/60 rounded-xl flex flex-col items-center justify-center p-8 border-2 border-red-500/30">
-                <AlertCircle className="w-16 h-16 text-red-400 mb-4" />
-                <h3 className="text-red-400 text-xl font-bold mb-2">Processing Error</h3>
-                <p className="text-red-300 text-center mb-6 max-w-md">{error}</p>
-                <div className="flex gap-4">
-                  {isRetryable && (
-                    <button
-                      onClick={handleRetryProcessing}
-                      className="px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition-colors"
-                    >
-                      Retry Processing
-                    </button>
-                  )}
+        {state === 'error' && (
+          <div className="flex-1 flex items-center justify-center p-8">
+            <div className="w-full max-w-lg bg-black/40 rounded-xl flex flex-col items-center justify-center p-8 border-2 border-red-500/30">
+              <AlertCircle className="w-16 h-16 text-red-400 mb-4" />
+              <h3 className="text-red-400 text-xl font-bold mb-2">Processing Error</h3>
+              <p className="text-red-300 text-center mb-6 max-w-md">{error}</p>
+              <div className="flex gap-4">
+                {isRetryable && (
                   <button
-                    onClick={handleRetake}
-                    className="px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-lg transition-colors"
+                    onClick={handleRetryProcessing}
+                    className="px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition-colors"
                   >
-                    Take New Photo
+                    Retry Processing
                   </button>
-                </div>
+                )}
+                <button
+                  onClick={handleRetake}
+                  className={`px-6 py-3 bg-gradient-to-r ${themeConfig.colors.captureBtn} text-white font-semibold rounded-lg transition-colors`}
+                >
+                  Take New Photo
+                </button>
               </div>
             </div>
-          )}
-        </div>
-
-        <footer className="text-center mt-12 text-amber-200/40">
-          <p className="flex items-center justify-center gap-2">
-            Powered by ITS Technology Innovation Office
-            <span className="text-amber-400">🍂</span>
-          </p>
-        </footer>
+          </div>
+        )}
       </main>
     </div>
   );

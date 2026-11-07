@@ -1,33 +1,18 @@
 import { Download, RotateCcw, Loader2 } from 'lucide-react';
 import { useState, type CSSProperties } from 'react';
-import { EffectType } from './EffectPicker';
+import type { ThemeFrame } from '../themes';
 
 interface ResultPanelProps {
   originalImage: string;
   processedImage: string;
-  effect: EffectType;
+  effect: string;
+  effectName: string;
+  frames: Record<string, ThemeFrame>;
+  defaultFrame: string;
+  processingText?: string;
   onRetake: () => void;
   isProcessing?: boolean;
 }
-
-type FrameOption = 'Gratitude1' | 'Gratitude2';
-
-const FRAME_CONFIGS: Record<FrameOption, {
-  path: string;
-  label: string;
-  window: { widthRatio: number; heightRatio: number; offsetXRatio: number; offsetYRatio: number };
-}> = {
-  Gratitude1: {
-    path: '/Gratitude1.png',
-    label: 'Gratitude (Autumn)',
-    window: { widthRatio: 0.84, heightRatio: 0.73, offsetXRatio: 0, offsetYRatio: 0.03 }
-  },
-  Gratitude2: {
-    path: '/Gratitude2.png',
-    label: 'Gratitude (Classic)',
-    window: { widthRatio: 0.88, heightRatio: 0.7, offsetXRatio: 0, offsetYRatio: 0.0 }
-  }
-};
 
 const loadImage = (src: string): Promise<HTMLImageElement> => {
   return new Promise((resolve, reject) => {
@@ -78,13 +63,17 @@ export default function ResultPanel({
   originalImage,
   processedImage,
   effect,
+  effectName,
+  frames,
+  defaultFrame,
+  processingText = 'Applying effects...',
   onRetake,
   isProcessing
 }: ResultPanelProps) {
   const [showOriginal, setShowOriginal] = useState(false);
-  const [selectedFrame, setSelectedFrame] = useState<FrameOption>('Gratitude2');
+  const [selectedFrame, setSelectedFrame] = useState<string>(defaultFrame);
 
-  const frameConfig = FRAME_CONFIGS[selectedFrame];
+  const frameConfig = frames[selectedFrame] ?? Object.values(frames)[0];
   const FRAME_WINDOW = frameConfig.window;
 
   const frameWindowStyle: CSSProperties = {
@@ -99,17 +88,19 @@ export default function ResultPanel({
 
   const downloadImage = async () => {
     try {
+      const currentFrameConfig = frames[selectedFrame] ?? Object.values(frames)[0];
       const [resultImage, frameImage] = await Promise.all([
         loadImage(activeImage),
-        loadImage(frameConfig.path)
+        loadImage(currentFrameConfig.path)
       ]);
 
+      const currentFW = currentFrameConfig.window;
       const width = frameImage.naturalWidth || resultImage.naturalWidth || resultImage.width;
       const height = frameImage.naturalHeight || resultImage.naturalHeight || resultImage.height;
-      const windowWidth = width * FRAME_WINDOW.widthRatio;
-      const windowHeight = height * FRAME_WINDOW.heightRatio;
-      const windowX = width * ((1 - FRAME_WINDOW.widthRatio) / 2 + FRAME_WINDOW.offsetXRatio);
-      const windowY = height * ((1 - FRAME_WINDOW.heightRatio) / 2 + FRAME_WINDOW.offsetYRatio);
+      const windowWidth = width * currentFW.widthRatio;
+      const windowHeight = height * currentFW.heightRatio;
+      const windowX = width * ((1 - currentFW.widthRatio) / 2 + currentFW.offsetXRatio);
+      const windowY = height * ((1 - currentFW.heightRatio) / 2 + currentFW.offsetYRatio);
 
       const canvas = document.createElement('canvas');
       canvas.width = width;
@@ -145,127 +136,108 @@ export default function ResultPanel({
     }
   };
 
-  const effectNames: Record<EffectType, string> = {
-    thanksgiving_glow: 'Thanksgiving Glow',
-    autumn_leaves: 'Autumn Leaves',
-    grateful_sparkle: 'Grateful Sparkle',
-    harvest_magic: 'Harvest Magic',
-    cozy_thanksgiving: 'Cozy Thanksgiving',
-    fall_confetti: 'Fall Confetti',
-    golden_harvest: 'Golden Harvest',
-    thankful_moments: 'Thankful Moments',
-    pumpkin_patch: 'Pumpkin Patch',
-    autumn_bokeh: 'Autumn Bokeh',
-    fall_crown: 'Fall Crown',
-    thanksgiving_magic: 'Thanksgiving Magic'
-  };
-
   return (
-    <div className="w-full">
-      {/* Frame selector */}
-      {!isProcessing && (
-        <div className="mb-4">
-          <p className="text-center text-amber-400 font-semibold mb-3">Choose Your Frame</p>
-          <div className="flex gap-4 justify-center">
-            {(Object.keys(FRAME_CONFIGS) as FrameOption[]).map((frameKey) => {
-              const config = FRAME_CONFIGS[frameKey];
-              const isActive = selectedFrame === frameKey;
-              return (
-                <button
-                  key={frameKey}
-                  onClick={() => setSelectedFrame(frameKey)}
-                  className={`relative rounded-xl overflow-hidden border-4 transition-all transform hover:scale-105 shadow-lg ${
-                    isActive
-                      ? 'border-amber-400 shadow-amber-400/50'
-                      : 'border-gray-600 hover:border-amber-400/60'
-                  }`}
-                  style={{ width: 180, height: 120 }}
-                >
-                  <img
-                    src={config.path}
-                    alt={config.label}
-                    className="w-full h-full object-fill"
-                  />
-                  {isActive && (
-                    <div className="absolute inset-0 bg-amber-400/10" />
-                  )}
-                  <div className={`absolute bottom-0 left-0 right-0 py-1 text-xs font-semibold text-center ${
-                    isActive ? 'bg-amber-400 text-gray-900' : 'bg-gray-900/80 text-gray-300'
-                  }`}>
-                    {config.label}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Photo preview with frame */}
-      <div className="relative aspect-[3/2] bg-gray-800 rounded-xl overflow-hidden border-2 border-amber-500/30 shadow-2xl shadow-amber-500/20">
-        {isProcessing ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900/95">
-            <Loader2 className="w-16 h-16 text-amber-400 animate-spin mb-4" />
-            <p className="text-amber-400 text-lg font-semibold">Applying Thanksgiving effects...</p>
-            <p className="text-gray-400 text-sm mt-2">This may take a few moments</p>
-          </div>
-        ) : (
-          <div className="absolute inset-0">
-            <div
-              className="overflow-hidden"
-              style={frameWindowStyle}
-            >
+    <div className="flex gap-6 h-full">
+      {/* Left: photo preview */}
+      <div className="flex-1 flex flex-col min-w-0">
+        <div className="relative aspect-[3/2] bg-gray-800 rounded-xl overflow-hidden border-2 border-amber-500/30 shadow-2xl shadow-amber-500/20">
+          {isProcessing ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900/95">
+              <Loader2 className="w-16 h-16 text-amber-400 animate-spin mb-4" />
+              <p className="text-amber-400 text-lg font-semibold">{processingText}</p>
+              <p className="text-gray-400 text-sm mt-2">This may take a few moments</p>
+            </div>
+          ) : (
+            <div className="absolute inset-0">
+              <div className="overflow-hidden" style={frameWindowStyle}>
+                <img
+                  src={activeImage}
+                  alt={showOriginal ? 'Original photo' : 'Thanksgiving photo result'}
+                  className="w-full h-full object-cover"
+                />
+              </div>
               <img
-                src={activeImage}
-                alt={showOriginal ? 'Original photo' : 'Thanksgiving photo result'}
-                className="w-full h-full object-cover"
+                src={frameConfig.path}
+                alt=""
+                aria-hidden="true"
+                className="absolute inset-0 w-full h-full object-fill pointer-events-none select-none"
               />
             </div>
-            <img
-              src={frameConfig.path}
-              alt=""
-              aria-hidden="true"
-              className="absolute inset-0 w-full h-full object-fill pointer-events-none select-none"
-            />
+          )}
+        </div>
+
+        {!isProcessing && (
+          <div className="mt-3 text-center">
+            <p className="text-amber-400 font-semibold text-sm">
+              Effect Applied: <span className="text-orange-400">{effectName}</span>
+            </p>
+            <p className="text-gray-400 text-xs mt-1">
+              Viewing: {showOriginal ? 'Original Photo' : 'Transformed Photo'}
+            </p>
           </div>
         )}
       </div>
 
+      {/* Right: controls */}
       {!isProcessing && (
-        <>
-          <div className="mt-4 flex flex-col items-center gap-3 text-center">
-            <p className="text-amber-400 font-semibold">
-              Effect Applied: <span className="text-orange-400">{effectNames[effect]}</span>
-            </p>
-            <p className="text-gray-400 text-sm">
-              Currently viewing: {showOriginal ? 'Original Photo' : 'Thanksgiving Remix'}
-            </p>
-            <button
-              onClick={() => setShowOriginal((prev) => !prev)}
-              className="px-6 py-2 bg-gray-800/80 hover:bg-gray-700 text-white rounded-lg border border-gray-700 transition-colors"
-            >
-              {showOriginal ? 'Show Thanksgiving Photo' : 'Show Original Photo'}
-            </button>
+        <div className="w-64 flex-shrink-0 flex flex-col gap-5">
+          {/* Frame selector */}
+          <div>
+            <p className="text-amber-400 font-semibold text-sm mb-2">Choose Your Frame</p>
+            <div className="flex flex-col gap-2">
+              {Object.keys(frames).map((frameKey) => {
+                const config = frames[frameKey];
+                const isActive = selectedFrame === frameKey;
+                return (
+                  <button
+                    key={frameKey}
+                    onClick={() => setSelectedFrame(frameKey)}
+                    className={`relative rounded-xl overflow-hidden border-4 transition-all hover:scale-[1.02] shadow-md w-full aspect-[3/2] ${
+                      isActive
+                        ? 'border-amber-400 shadow-amber-400/50'
+                        : 'border-gray-600 hover:border-amber-400/60'
+                    }`}
+                  >
+                    <img src={config.path} alt={config.label} className="w-full h-full object-fill" />
+                    {isActive && <div className="absolute inset-0 bg-amber-400/10" />}
+                    <div className={`absolute bottom-0 left-0 right-0 py-1 text-xs font-semibold text-center ${
+                      isActive ? 'bg-amber-400 text-gray-900' : 'bg-gray-900/80 text-gray-300'
+                    }`}>
+                      {config.label}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          <div className="mt-6 flex flex-col sm:flex-row gap-4 justify-center">
+          {/* Toggle original */}
+          <button
+            onClick={() => setShowOriginal((prev) => !prev)}
+            className="w-full px-4 py-2.5 bg-gray-800/80 hover:bg-gray-700 text-white rounded-lg border border-gray-700 transition-colors text-sm"
+          >
+            {showOriginal ? 'Show Transformed Photo' : 'Show Original Photo'}
+          </button>
+
+          {/* Actions */}
+          <div className="flex flex-col gap-3 mt-auto">
             <button
               onClick={downloadImage}
-              className="px-8 py-4 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold rounded-xl transition-all transform hover:scale-105 shadow-lg flex items-center justify-center gap-3"
+              className="w-full px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold rounded-xl transition-all hover:scale-105 shadow-lg flex items-center justify-center gap-2"
             >
-              <Download className="w-6 h-6" />
+              <Download className="w-5 h-5" />
               Download Photo
             </button>
 
             <button
               onClick={onRetake}
-              className="px-8 py-4 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold rounded-xl transition-all transform hover:scale-105 shadow-lg flex items-center justify-center gap-3"
+              className="w-full px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold rounded-xl transition-all hover:scale-105 shadow-lg flex items-center justify-center gap-2"
             >
-              <RotateCcw className="w-6 h-6" />
+              <RotateCcw className="w-5 h-5" />
               Retake Photo
             </button>
           </div>
-        </>
+        </div>
       )}
     </div>
   );

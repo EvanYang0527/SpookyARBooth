@@ -37,19 +37,29 @@ router.post('/login', async (req: Request, res: Response) => {
         res.status(403).json({ error: 'Your account has expired. Please contact an administrator.' });
         return;
       }
-      res.json({ token: signToken(user.username, user.role), role: user.role, username: user.username });
+      res.json({ token: signToken(user.username, user.role), role: user.role, username: user.username, theme: user.theme || 'gratitude_itsba2026' });
+      return;
+    }
+
+    // --- Fallback: user not found in Table Storage — check env-var admin credentials ---
+    const adminUsername = process.env.ADMIN_USERNAME;
+    const adminPassword = process.env.ADMIN_PASSWORD;
+
+    if (adminUsername && adminPassword && trimmed === adminUsername && password === adminPassword) {
+      console.warn('Logged in via env-var admin fallback (user not found in Table Storage).');
+      res.json({ token: signToken(adminUsername, 'admin'), role: 'admin', username: adminUsername, theme: 'gratitude_itsba2026' });
       return;
     }
 
     res.status(401).json({ error: 'Invalid username or password.' });
   } catch {
-    // --- Fallback: Azure Storage not configured — check env-var admin credentials ---
+    // --- Fallback: Azure Storage not configured / threw an error ---
     const adminUsername = process.env.ADMIN_USERNAME;
     const adminPassword = process.env.ADMIN_PASSWORD;
 
     if (adminUsername && adminPassword && trimmed === adminUsername && password === adminPassword) {
-      console.warn('Logged in via env-var admin fallback (Azure Storage not configured).');
-      res.json({ token: signToken(adminUsername, 'admin'), role: 'admin', username: adminUsername });
+      console.warn('Logged in via env-var admin fallback (Azure Storage error).');
+      res.json({ token: signToken(adminUsername, 'admin'), role: 'admin', username: adminUsername, theme: 'gratitude_itsba2026' });
       return;
     }
 

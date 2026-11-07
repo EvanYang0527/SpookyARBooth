@@ -5,6 +5,7 @@ import {
   listUsers,
   createUser,
   updateUserExpiry,
+  updateUserTheme,
   deleteUser,
   listSessions,
 } from '../services/tableStorage';
@@ -32,10 +33,11 @@ router.get('/users', async (_req: Request, res: Response) => {
 });
 
 router.post('/users', async (req: Request, res: Response) => {
-  const { username, password, role = 'user', expiresAt } = req.body as {
+  const { username, password, role = 'user', theme = 'gratitude_itsba2026', expiresAt } = req.body as {
     username?: string;
     password?: string;
     role?: 'admin' | 'user';
+    theme?: string;
     expiresAt?: string; // ISO string or '' for never
   };
 
@@ -55,6 +57,7 @@ router.post('/users', async (req: Request, res: Response) => {
       username: username.trim(),
       password,
       role,
+      theme,
       expiresAt: resolvedExpiry,
       createdBy: req.auth!.username,
     });
@@ -85,6 +88,24 @@ router.put('/users/:username/expiry', async (req: Request, res: Response) => {
   } catch (err) {
     console.error('Update expiry error:', err);
     res.status(500).json({ error: 'Failed to update expiry.' });
+  }
+});
+
+router.put('/users/:username/theme', async (req: Request, res: Response) => {
+  const { username } = req.params;
+  const { theme } = req.body as { theme?: string };
+
+  if (!theme) {
+    res.status(400).json({ error: 'theme is required.' });
+    return;
+  }
+
+  try {
+    await updateUserTheme(username, theme);
+    res.json({ message: 'Theme updated.' });
+  } catch (err) {
+    console.error('Update theme error:', err);
+    res.status(500).json({ error: 'Failed to update theme.' });
   }
 });
 
